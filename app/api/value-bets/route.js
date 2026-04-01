@@ -279,14 +279,14 @@ export async function GET(request) {
 
              if (parsed.scope === 'casa') {
                trackHome = 'made';
-               verbHome = 'ha FATTO l\\'esito richiesto';
+               verbHome = "ha FATTO l'esito richiesto";
                trackAway = 'conceded';
-               verbAway = 'ha SUBITO l\\'esito richiesto';
+               verbAway = "ha SUBITO l'esito richiesto";
              } else if (parsed.scope === 'ospite') {
                trackHome = 'conceded';
-               verbHome = 'ha SUBITO l\\'esito richiesto';
+               verbHome = "ha SUBITO l'esito richiesto";
                trackAway = 'made';
-               verbAway = 'ha FATTO l\\'esito richiesto';
+               verbAway = "ha FATTO l'esito richiesto";
              } else if (parsed.type === '1x2') {
                if (parsed.esito === '1') {
                  trackHome = 'made'; verbHome = 'ha VINTO';
