@@ -12,7 +12,7 @@ const LEAGUES = [
   { id: 'Bundes', name: 'Bundesliga' },
 ];
 
-const CATEGORIES = ['Tutti', 'Gol', 'Tiri', 'TIP', 'Falli', 'Corner', 'Cartellini', 'Parate'];
+const CATEGORIES = ['Tutti', 'Gol', 'Tiri', 'Tiri in Porta', 'Falli', 'Corner', 'Cartellini', 'Parate'];
 const STATS_LIST = ['gol', 'tiri', 'tip', 'falli', 'corner', 'cartellini', 'parate'];
 
 function AnalysisContent() {

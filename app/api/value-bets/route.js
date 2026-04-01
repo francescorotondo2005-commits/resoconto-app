@@ -64,7 +64,7 @@ function checkHistoricalCondition(parsedMkt, match, teamRole, trackType) {
   return false;
 }
 
-function calculateTrendLabel(teamName, parsedMkt, matches, trackType) {
+function calculateTrendLabel(teamName, parsedMkt, matches, trackType, roleFilter) {
   let totalMatches = 0;
   let totalHits = 0;
   
@@ -99,11 +99,15 @@ function calculateTrendLabel(teamName, parsedMkt, matches, trackType) {
   let result = `${teamName}: %VERB% ${totalHits} volte su ${totalMatches} (${totalPct}%)`;
   
   const additionalDetails = [];
-  if (homeMatches > 0) {
+  
+  // Se è "home" o "totale", mostra il breakdown in casa
+  if (roleFilter !== 'away' && homeMatches > 0) {
     const homePct = Math.round((homeHits / homeMatches) * 100);
     additionalDetails.push(`${homeHits} volte su ${homeMatches} in casa (${homePct}%)`);
   }
-  if (awayMatches > 0) {
+  
+  // Se è "away" o "totale", mostra il breakdown in trasferta
+  if (roleFilter !== 'home' && awayMatches > 0) {
     const awayPct = Math.round((awayHits / awayMatches) * 100);
     additionalDetails.push(`${awayHits} volte su ${awayMatches} in trasferta (${awayPct}%)`);
   }
@@ -300,8 +304,8 @@ export async function GET(request) {
                }
              }
 
-             const homeMessage = calculateTrendLabel(homeTeam, parsed, matches, trackHome);
-             const awayMessage = calculateTrendLabel(awayTeam, parsed, matches, trackAway);
+             const homeMessage = calculateTrendLabel(homeTeam, parsed, matches, trackHome, 'home');
+             const awayMessage = calculateTrendLabel(awayTeam, parsed, matches, trackAway, 'away');
 
              // Format string replacements
              const finalHomeStr = homeMessage.replace('%VERB%', verbHome);
