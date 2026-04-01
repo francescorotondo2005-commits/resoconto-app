@@ -98,6 +98,7 @@ function ValueBetsContent() {
                   <th>Cat.</th>
                   <th>EV</th>
                   <th>SD</th>
+                  <th>CV</th>
                   <th>Prob.</th>
                   <th>Edge</th>
                   <th>Quota</th>
@@ -113,6 +114,7 @@ function ValueBetsContent() {
                     <td><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{bet.category}</span></td>
                     <td>{bet.ev}</td>
                     <td>{bet.sd}</td>
+                    <td>{bet.cv}</td>
                     <td style={{ fontWeight: 600 }}>{(bet.probability * 100).toFixed(1)}%</td>
                     <td>
                       <span className="edge-indicator positive">
