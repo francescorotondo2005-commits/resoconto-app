@@ -108,6 +108,13 @@ export async function POST(request) {
       results[sheetName] = { status: 'ok', imported };
     }
 
+    // Al termine dell'import, pulisci tutti i pending_matches per le partite che sono ormai finite
+    try {
+      await db.execute('DELETE FROM pending_matches WHERE match_key IN (SELECT league || \'|\' || home_team || \'|\' || away_team FROM matches)');
+    } catch (e) {
+      console.error('Error cleaning pending matches automatically:', e);
+    }
+
     return NextResponse.json({ success: true, results });
   } catch (error) {
     console.error('Import error:', error);

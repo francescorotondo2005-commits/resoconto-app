@@ -24,6 +24,7 @@ function AnalysisContent() {
   const [referee, setReferee] = useState('');
   const [teams, setTeams] = useState([]);
   const [referees, setReferees] = useState([]);
+  const [pendingMatches, setPendingMatches] = useState([]);
   
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -80,17 +81,34 @@ function AnalysisContent() {
       setTeams(data.teams || []);
       setReferees(data.referees || []);
     } catch (e) { console.error(e); }
+    fetchPendingMatches();
   }
 
-  async function runAnalysis() {
-    if (!league || !homeTeam || !awayTeam) return;
+  async function fetchPendingMatches() {
+    try {
+      const res = await fetch('/api/pending-matches');
+      const data = await res.json();
+      setPendingMatches(data.pendingMatches || []);
+    } catch (e) { console.error('Errore pending matches:', e); }
+  }
+
+  async function loadPendingMatch(pm) {
+    setLeague(pm.league);
+    setHomeTeam(pm.home_team);
+    setAwayTeam(pm.away_team);
+    setReferee(pm.referee || '');
+    runAnalysis(pm.league, pm.home_team, pm.away_team, pm.referee || '');
+  }
+
+  async function runAnalysis(l = league, h = homeTeam, a = awayTeam, r = referee) {
+    if (!l || !h || !a) return;
     setLoading(true);
     try {
       // Fetch analysis results
       const res = await fetch('/api/analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ league, homeTeam, awayTeam, referee }),
+        body: JSON.stringify({ league: l, homeTeam: h, awayTeam: a, referee: r }),
       });
       const data = await res.json();
       
@@ -100,8 +118,9 @@ function AnalysisContent() {
         return;
       }
       
+      
       // Fetch odds from DB
-      const oddsRes = await fetch(`/api/analysis/odds?matchKey=${encodeURIComponent(`${league}|${homeTeam}|${awayTeam}`)}`);
+      const oddsRes = await fetch(`/api/analysis/odds?matchKey=${encodeURIComponent(`${l}|${h}|${a}`)}`);
       if (oddsRes.ok) {
         const oddsData = await oddsRes.json();
         const loadedOdds = {};
@@ -123,6 +142,7 @@ function AnalysisContent() {
       }
 
       setResults(data);
+      fetchPendingMatches(); // Refresh pending matches list
     } catch (e) {
       setToast({ type: 'error', message: e.message });
     }
@@ -329,6 +349,28 @@ function AnalysisContent() {
           <p className="page-subtitle">Seleziona campionato e squadre per generare l'analisi</p>
         </div>
 
+        {/* Pending Matches */}
+        {pendingMatches.length > 0 && (
+          <div className="card" style={{ marginBottom: 24, padding: 16 }}>
+            <div style={{ fontSize: 13, color: 'var(--accent-primary)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 12 }}>
+              ⏱️ Analisi in Pending
+            </div>
+            <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
+              {pendingMatches.map(pm => (
+                <button
+                  key={pm.match_key}
+                  className="btn btn-secondary"
+                  style={{ whiteSpace: 'nowrap', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '8px 12px' }}
+                  onClick={() => loadPendingMatch(pm)}
+                >
+                  <strong style={{ fontSize: 13 }}>{pm.home_team} - {pm.away_team}</strong>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{pm.league} • {pm.odds_count} quote • Arb: {pm.referee || 'N/A'}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Input Form */}
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="form-row">
@@ -361,7 +403,7 @@ function AnalysisContent() {
               </select>
             </div>
           </div>
-          <button className="btn btn-primary btn-lg" onClick={runAnalysis} disabled={!league || !homeTeam || !awayTeam || loading} style={{ width: '100%', marginTop: 8 }}>
+          <button className="btn btn-primary btn-lg" onClick={() => runAnalysis()} disabled={!league || !homeTeam || !awayTeam || loading} style={{ width: '100%', marginTop: 8 }}>
             {loading ? <><span className="loading-spinner" /> Calcolo in corso...</> : '🔍 Genera Analisi'}
           </button>
         </div>
@@ -405,6 +447,16 @@ function AnalysisContent() {
                           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Totale</div>
                           <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>
                             <strong style={{ color: 'var(--blue)' }}>{s.totale.ev.toFixed(2)}</strong> <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>(±{s.totale.sd.toFixed(2)})</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Info Arbitro per Falli e Cartellini */}
+                      {results.matchInfo?.referee && (stat === 'falli' || stat === 'cartellini') && (
+                        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 10, textAlign: 'center', background: 'var(--bg-secondary)', borderRadius: 6, padding: 8 }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Moltiplicatore Arbitro</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: results.refereeRating[stat] > 1 ? 'var(--green)' : results.refereeRating[stat] < 1 ? 'var(--red)' : 'var(--text-primary)' }}>
+                            x{results.refereeRating[stat].toFixed(2)}
                           </div>
                         </div>
                       )}

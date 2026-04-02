@@ -159,6 +159,9 @@ export async function POST(request) {
         // Elimina le quote pre-partita originali per pulizia
         await db.execute({ sql: 'DELETE FROM match_odds WHERE match_key = ?', args: [matchKey] });
       }
+      
+      // Indipendentemente dalle quote, se la partita è completata, rimuovila dal carrello pending_matches
+      await db.execute({ sql: 'DELETE FROM pending_matches WHERE match_key = ?', args: [matchKey] });
     } catch (e) {
       console.error('Error during auto-backtesting', e);
     }

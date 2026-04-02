@@ -75,6 +75,21 @@ export async function POST(request) {
 
     // Carica scommesse custom
     const matchKey = `${league}|${homeTeam}|${awayTeam}`;
+
+    // Aggiorna tabella pending_matches per il "carrello" globale e per l'arbitro
+    try {
+      await db.execute({
+        sql: `INSERT INTO pending_matches (match_key, league, home_team, away_team, referee, updated_at) 
+              VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+              ON CONFLICT(match_key) DO UPDATE SET 
+              referee = excluded.referee, 
+              updated_at = CURRENT_TIMESTAMP`,
+        args: [matchKey, league, homeTeam, awayTeam, referee || null]
+      });
+    } catch (e) {
+      console.error('Error updating pending_matches:', e);
+    }
+
     try {
       const customRowsRes = await db.execute({ sql: 'SELECT * FROM match_odds WHERE match_key = ? AND is_custom = 1', args: [matchKey] });
       const customRows = customRowsRes.rows;

@@ -134,6 +134,13 @@ export async function GET(request) {
       return NextResponse.json({ valueBets: [] });
     }
 
+    // 1b. Fetch pending_matches per ricavare gli arbitri attualmente impostati
+    const pendingRes = await db.execute('SELECT * FROM pending_matches');
+    const pendingMap = {};
+    for (const r of pendingRes.rows) {
+      pendingMap[r.match_key] = r;
+    }
+
     // Group by match_key
     const oddsByMatch = {};
     for (const row of oddsRows) {
@@ -199,8 +206,30 @@ export async function GET(request) {
         evsd[stat].totale.cv = CV_CALC(evsd[stat].totale.ev, evsd[stat].totale.sd);
       }
 
-      // Referee rating omitted for global view, defaults to null for bets
-      const refereeRating = null;
+      // 3.b Applicazione Rating Arbitro se la partita in pending lo possiede
+      const pendingInfo = pendingMap[matchKey];
+      const matchReferee = pendingInfo?.referee || null;
+
+      if (matchReferee) {
+        const refFalli = INDICE_ARBITRO_AVANZATO(matchReferee, 'falli', matches);
+        const refCartellini = INDICE_ARBITRO_AVANZATO(matchReferee, 'cartellini', matches);
+
+        const applyRating = (statKey, rating) => {
+          if (!evsd[statKey]) return;
+          evsd[statKey].casa.ev *= rating;
+          evsd[statKey].casa.sd *= rating;
+          evsd[statKey].ospite.ev *= rating;
+          evsd[statKey].ospite.sd *= rating;
+          evsd[statKey].totale.ev *= rating;
+          evsd[statKey].totale.sd *= rating;
+        };
+
+        applyRating('falli', refFalli);
+        applyRating('cartellini', refCartellini);
+      }
+
+      // Referee rating passed through 
+      const refereeRating = matchReferee;
 
       // 4. Process each saved odd for this match
       for (const mktRow of groupData.markets) {
@@ -313,6 +342,39 @@ export async function GET(request) {
 
              // Formal format
              historyMessage = `<div style="margin-bottom: 12px; line-height: 1.6;"><strong>${homeTeam}</strong>: ${finalHomeStr.substring(finalHomeStr.indexOf(':') + 2)}</div><div style="line-height: 1.6;"><strong>${awayTeam}</strong>: ${finalAwayStr.substring(finalAwayStr.indexOf(':') + 2)}</div>`;
+             
+             // Storico Arbitro
+             if (matchReferee && (parsed.stat === 'falli' || parsed.stat === 'cartellini' || parsed.stat === 'tip' || parsed.stat === 'gol' || parsed.stat === 'tiri' || parsed.stat === 'corner')) {
+               // Per neutralità e coerenza, consideriamo che se l'utente scommette sui "Falli Casa", stiamo cercando quante volte 
+               // le squadre che giocavano in CASA con questo arbitro hanno verificato l'esito della bet.
+               let refMatches = 0;
+               let refHits = 0;
+               for (const m of matches) {
+                 if (m.referee && m.referee.toLowerCase() === matchReferee.toLowerCase()) {
+                   refMatches++;
+                   // Testiamo l'esito 'come' se fosse il match target.
+                   // La funzione checkHistoricalCondition accetta 'm' (la vecchia partita) e i parametri della bet.
+                   // Se la bet chiede di superare la linea globale, passiamo 'totale'.
+                   let refTrack = trackHome;
+                   if (parsed.scope === 'totale') refTrack = 'totale';
+                   else if (parsed.scope === 'casa') refTrack = 'made';
+                   else if (parsed.scope === 'ospite') refTrack = 'made'; // L'ospite storico fa la linea ospite
+
+                   let conditionMet = false;
+                   if (parsed.scope === 'totale') conditionMet = checkHistoricalCondition(parsed, m, 'home', 'totale');
+                   else if (parsed.scope === 'casa') conditionMet = checkHistoricalCondition(parsed, m, 'home', 'made');
+                   else if (parsed.scope === 'ospite') conditionMet = checkHistoricalCondition(parsed, m, 'away', 'made');
+                   
+                   if (conditionMet) refHits++;
+                 }
+               }
+
+               if (refMatches > 0) {
+                 const refPct = Math.round((refHits / refMatches) * 100);
+                 historyMessage += `<div style="margin-top: 12px; line-height: 1.6; padding-top: 12px; border-top: 1px dashed var(--border);"><strong>Arbitro ${matchReferee}</strong>: L'esito si è verificato in ${refHits} su ${refMatches} partite da lui dirette in campionato (${refPct}%).</div>`;
+               }
+             }
+
           } else {
              historyMessage = "Dati storici non parseabili per questa scommessa.";
           }
@@ -335,7 +397,7 @@ export async function GET(request) {
             actualOdds,
             edge: Math.round(bestEdge * 10000) / 10000,
             historyMessage,
-            refereeRating: null, // Global edge context, assuming arbitrary referee
+            refereeRating: refereeRating, 
           });
         }
       }
