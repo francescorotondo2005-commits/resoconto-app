@@ -53,6 +53,21 @@ export async function POST(request) {
     if (referee) {
       refereeRating.falli = INDICE_ARBITRO_AVANZATO(referee, 'falli', matches);
       refereeRating.cartellini = INDICE_ARBITRO_AVANZATO(referee, 'cartellini', matches);
+
+      // Applica il moltiplicatore ai valori EV e SD per le statistiche influenzate
+      const applyRating = (statKey, rating) => {
+        if (!evsd[statKey]) return;
+        evsd[statKey].casa.ev *= rating;
+        evsd[statKey].casa.sd *= rating;
+        evsd[statKey].ospite.ev *= rating;
+        evsd[statKey].ospite.sd *= rating;
+        evsd[statKey].totale.ev *= rating;
+        evsd[statKey].totale.sd *= rating;
+        // Il CV (sd/ev) rimane matematicamente invariato
+      };
+
+      applyRating('falli', refereeRating.falli);
+      applyRating('cartellini', refereeRating.cartellini);
     }
 
     // Genera tutte le scommesse con probabilità
