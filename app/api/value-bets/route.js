@@ -298,8 +298,8 @@ export async function GET(request) {
           }
         }
 
-        // We only care about edges strictly > 0 for Scanner
-        if (bestEdge > 0 && probability > 0) {
+        // We only care about edges strictly > 0 for Scanner AND Probability >= minProb
+        if (bestEdge > 0 && probability >= minProb) {
           
           // Generate Historical Hit Rate Message
           const parsed = parseMarketName(marketDef.name);
@@ -344,7 +344,7 @@ export async function GET(request) {
              historyMessage = `<div style="margin-bottom: 12px; line-height: 1.6;"><strong>${homeTeam}</strong>: ${finalHomeStr.substring(finalHomeStr.indexOf(':') + 2)}</div><div style="line-height: 1.6;"><strong>${awayTeam}</strong>: ${finalAwayStr.substring(finalAwayStr.indexOf(':') + 2)}</div>`;
              
              // Storico Arbitro
-             if (matchReferee && (parsed.stat === 'falli' || parsed.stat === 'cartellini' || parsed.stat === 'tip' || parsed.stat === 'gol' || parsed.stat === 'tiri' || parsed.stat === 'corner')) {
+             if (matchReferee && (parsed.stat === 'falli' || parsed.stat === 'cartellini')) {
                // Per neutralità e coerenza, consideriamo che se l'utente scommette sui "Falli Casa", stiamo cercando quante volte 
                // le squadre che giocavano in CASA con questo arbitro hanno verificato l'esito della bet.
                let refMatches = 0;
