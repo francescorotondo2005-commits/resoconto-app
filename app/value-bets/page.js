@@ -12,6 +12,9 @@ function ValueBetsContent() {
   const [betModal, setBetModal] = useState(null);
   const [historyModal, setHistoryModal] = useState(null);
   
+  // Bet Builder
+  const [selectedBets, setSelectedBets] = useState([]);
+  
   useEffect(() => {
     fetchValueBets();
   }, []);
@@ -57,11 +60,50 @@ function ValueBetsContent() {
       if (res.ok) {
         setToast({ type: 'success', message: `Bet salvata nel Tracker!` });
         setBetModal(null);
+        setSelectedBets([]); // Svuota la selezione della multipla
       }
     } catch (e) {
       setToast({ type: 'error', message: e.message });
     }
   }
+
+  // Helpers per Bet Builder
+  const toggleBetSelection = (bet) => {
+    // La chiave unica della bet
+    const key = `${bet.matchKey}-${bet.name}`;
+    if (selectedBets.some(b => `${b.matchKey}-${b.name}` === key)) {
+      setSelectedBets(selectedBets.filter(b => `${b.matchKey}-${b.name}` !== key));
+    } else {
+      setSelectedBets([...selectedBets, bet]);
+    }
+  };
+
+  const getMultiplierStats = () => {
+    if (selectedBets.length === 0) return null;
+    let combinedProb = 1;
+    let combinedOdds = 1;
+    let combinedEv = 0; // Approssimazione
+    let matchStrs = new Set();
+    
+    selectedBets.forEach(b => {
+      combinedProb *= b.probability;
+      combinedOdds *= b.actualOdds;
+      matchStrs.add(b.matchStr);
+    });
+    
+    const combinedEdge = (combinedProb * combinedOdds) - 1;
+    const isSameMatch = matchStrs.size === 1;
+
+    return {
+      combinedProb,
+      combinedOdds,
+      combinedEdge,
+      title: isSameMatch ? `Bet Builder (${Array.from(matchStrs)[0]})` : `Multipla Mista`,
+      matches: Array.from(matchStrs).join(' + '),
+      name: selectedBets.map(b => b.name).join(' + '),
+      bookmaker: selectedBets[0].bookmaker // assuming same bookie
+    };
+  };
 
   return (
     <div className="app-layout">
@@ -93,6 +135,7 @@ function ValueBetsContent() {
             <table>
               <thead>
                 <tr>
+                  <th style={{ width: '40px', textAlign: 'center' }}>✓</th>
                   <th>Partita</th>
                   <th>Scommessa</th>
                   <th>Cat.</th>
@@ -107,8 +150,19 @@ function ValueBetsContent() {
                 </tr>
               </thead>
               <tbody>
-                {bets.map((bet, i) => (
-                  <tr key={`${bet.matchKey}-${bet.name}-${i}`}>
+                {bets.map((bet, i) => {
+                  const key = `${bet.matchKey}-${bet.name}`;
+                  const isSelected = selectedBets.some(b => `${b.matchKey}-${b.name}` === key);
+                  return (
+                  <tr key={`${key}-${i}`} className={isSelected ? 'row-highlight' : ''}>
+                    <td style={{ textAlign: 'center' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={isSelected}
+                        onChange={() => toggleBetSelection(bet)}
+                        style={{ cursor: 'pointer', transform: 'scale(1.2)' }}
+                      />
+                    </td>
                     <td style={{ fontWeight: 600, fontSize: 13, color: 'var(--blue)' }}>{bet.matchStr}</td>
                     <td style={{ fontWeight: 600, fontSize: 13 }}>{bet.name}</td>
                     <td><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{bet.category}</span></td>
@@ -141,9 +195,73 @@ function ValueBetsContent() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Sticky Bet Builder Drawer */}
+        {selectedBets.length > 0 && (
+          <div style={{
+            position: 'fixed',
+            bottom: 0, left: 240, right: 0,
+            background: 'var(--bg-card)',
+            borderTop: '1px solid var(--border)',
+            padding: '16px 24px',
+            boxShadow: '0 -4px 20px rgba(0,0,0,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            zIndex: 100
+          }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, color: 'var(--accent-primary)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>
+                {getMultiplierStats().title} ({selectedBets.length} Selezioni)
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '800px' }}>
+                {getMultiplierStats().name}
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', gap: 32, alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Probabilità</div>
+                <div style={{ fontSize: 16, fontWeight: 700 }}>{(getMultiplierStats().combinedProb * 100).toFixed(1)}%</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Quota Totale</div>
+                <div style={{ fontSize: 16, fontWeight: 700 }}>{getMultiplierStats().combinedOdds.toFixed(2)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Edge Totale</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: getMultiplierStats().combinedEdge > 0 ? 'var(--green)' : 'var(--red)' }}>
+                  {(getMultiplierStats().combinedEdge * 100).toFixed(1)}%
+                </div>
+              </div>
+              <button 
+                className="btn btn-primary"
+                onClick={() => {
+                  const m = getMultiplierStats();
+                  const multiBet = {
+                    league: selectedBets[0].league, // assume primary league
+                    matchStr: m.matches, // potenziale misto
+                    name: m.name,
+                    category: 'Multipla',
+                    ev: 0, sd: 0, cv: 0, // Dati aggregati omettevoli
+                    probability: m.combinedProb,
+                    fairOdds: 1 / m.combinedProb,
+                    minOdds: null,
+                    actualOdds: m.combinedOdds,
+                    bookmaker: m.bookmaker,
+                    edge: m.combinedEdge
+                  };
+                  setBetModal({ bet: multiBet, stake: 1 });
+                }}
+              >
+                Gioca Multipla 🚀
+              </button>
+            </div>
           </div>
         )}
 
