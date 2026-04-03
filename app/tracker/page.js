@@ -64,6 +64,11 @@ export default function TrackerPage() {
     try {
       const edge = (editModal.bet.probability * editModal.newOdds) - 1;
       
+      let newProfit = editModal.bet.profit;
+      if (editModal.bet.outcome === 'WIN') {
+        newProfit = editModal.bet.stake * editModal.newOdds - editModal.bet.stake;
+      }
+
       const res = await fetch('/api/bets', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -71,7 +76,8 @@ export default function TrackerPage() {
           action: 'edit_odds',
           id: editModal.bet.id,
           actual_odds: editModal.newOdds,
-          edge
+          edge,
+          profit: newProfit
         }),
       });
 
