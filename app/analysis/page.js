@@ -192,28 +192,28 @@ function AnalysisContent() {
     }
   }
 
-  // Formatta in modo identico a lib/markets.js
-  function formatCustomName(stat, type, scope, direction, line, esito) {
-    const labelMap = { gol: 'GOL', tiri: 'TIRI', tip: 'TIRI IN PORTA', falli: 'FALLI', corner: 'CORNER', cartellini: 'CARTELLINI', parate: 'PARATE' };
-    const scopeLabel = { totale: '', casa: ' CASA', ospite: ' OSPITE' };
-    const fullLabel = `${labelMap[stat] || stat.toUpperCase()}${scopeLabel[scope] || ''}`;
-    if (type === '1x2') return `1X2 ${fullLabel}: ${esito}`;
-    const lineStr = line % 1 === 0.5 ? `${Math.floor(line)},5` : `${line}`;
-    return `${direction === 'over' ? 'OVER' : 'UNDER'} ${lineStr} ${fullLabel}`;
-  }
-
   // Add Custom Bet Form handler
   async function handleAddCustomBet() {
     if (!matchKey) return;
     const isOverUnder = customBet.type === 'over_under';
     
-    // Costruiamo il market_name ESATTAMENTE UGUALE al display name così la UI la riconoscerà
-    const marketName = formatCustomName(
-      customBet.stat, customBet.type, customBet.scope, 
-      isOverUnder ? customBet.direction : null, 
-      isOverUnder ? customBet.line : null, 
-      !isOverUnder ? customBet.esito : null
-    );
+    // Costruisci il nome esatto come farà generateCustomMarket nel backend
+    const labelMap = {
+      gol: 'GOL', tiri: 'TIRI', tip: 'TIRI IN PORTA', falli: 'FALLI',
+      corner: 'CORNER', cartellini: 'CARTELLINI', parate: 'PARATE',
+    };
+    const scopeLabel = { totale: '', casa: ' CASA', ospite: ' OSPITE' };
+    const baseLabel = labelMap[customBet.stat] || customBet.stat.toUpperCase();
+    const fullLabel = `${baseLabel}${scopeLabel[customBet.scope] || ''}`;
+
+    let marketName = '';
+    if (isOverUnder) {
+      const lineStr = customBet.line % 1 === 0.5 ? `${Math.floor(customBet.line)},5` : `${customBet.line}`;
+      const dirLabel = customBet.direction === 'over' ? 'OVER' : 'UNDER';
+      marketName = `${dirLabel} ${lineStr} ${fullLabel}`;
+    } else {
+      marketName = `1X2 ${fullLabel}: ${customBet.esito}`;
+    }
 
     try {
       await fetch('/api/analysis/odds', {
