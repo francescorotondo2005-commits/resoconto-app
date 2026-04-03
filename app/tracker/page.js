@@ -16,6 +16,9 @@ export default function TrackerPage() {
   const [backtestStats, setBacktestStats] = useState({});
 
   const [toast, setToast] = useState(null);
+  
+  // Edit Bet Modal
+  const [editModal, setEditModal] = useState(null);
 
   useEffect(() => { 
     loadBets(); 
@@ -54,6 +57,32 @@ export default function TrackerPage() {
       loadBets();
       setTimeout(() => setToast(null), 3000);
     } catch (e) { console.error(e); }
+  }
+
+  async function updateBetOdds() {
+    if (!editModal || !editModal.newOdds) return;
+    try {
+      const edge = (editModal.bet.probability * editModal.newOdds) - 1;
+      
+      const res = await fetch('/api/bets', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'edit_odds',
+          id: editModal.bet.id,
+          actual_odds: editModal.newOdds,
+          edge
+        }),
+      });
+
+      if (res.ok) {
+        setToast({ type: 'success', message: 'Quota scommessa aggiornata con successo!' });
+        setEditModal(null);
+        loadBets();
+      }
+    } catch (error) {
+      setToast({ type: 'error', message: error.message });
+    }
   }
 
   async function deleteBacktestBet(id) {
@@ -210,8 +239,8 @@ export default function TrackerPage() {
                         {b.profit != null ? `€${b.profit.toFixed(2)}` : '—'}
                       </td>
                       <td>
-                        <button className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', color: 'var(--red)' }} onClick={() => deleteBet(b.id)} title="Elimina Scommessa">
-                          🗑️
+                        <button className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', color: 'var(--blue)' }} onClick={() => setEditModal({ bet: b, newOdds: b.actual_odds })} title="Modifica Scommessa">
+                          ✏️
                         </button>
                       </td>
                     </tr>
@@ -328,6 +357,58 @@ export default function TrackerPage() {
               </table>
             </div>
           </>
+        )}
+
+        {/* Modal Modifica Quota */}
+        {editModal && (
+          <div className="modal-overlay" onClick={() => setEditModal(null)}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+              <h2 className="modal-title">✏️ Modifica Quota Scommessa</h2>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{editModal.bet.match_description}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, margin: '4px 0' }}>{editModal.bet.bet_name}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Probabilità originaria: {(editModal.bet.probability * 100).toFixed(1)}%</div>
+              </div>
+              
+              <div className="form-row">
+                <div className="input-group">
+                  <label>Aggiorna Quota (Reale)</label>
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    min="1.01" 
+                    value={editModal.newOdds} 
+                    onChange={e => setEditModal({ ...editModal, newOdds: parseFloat(e.target.value) || '' })} 
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 16, fontSize: 14 }}>
+                <span style={{ color: 'var(--text-muted)' }}>Nuovo Edge Calcolato: </span>
+                <strong className={(editModal.newOdds && (editModal.bet.probability * editModal.newOdds) - 1 > 0) ? 'positive' : 'negative'}>
+                  {editModal.newOdds ? (((editModal.bet.probability * editModal.newOdds) - 1) * 100).toFixed(1) : 0}%
+                </strong>
+              </div>
+
+              <div className="form-actions" style={{ marginTop: 24, justifyContent: 'space-between' }}>
+                <button 
+                   className="btn btn-secondary" 
+                   style={{ color: 'var(--red)', padding: '8px 12px', background: 'transparent' }} 
+                   onClick={() => {
+                     deleteBet(editModal.bet.id);
+                     setEditModal(null);
+                   }}
+                >
+                   🗑️ Elimina Definitivamente
+                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button className="btn btn-secondary" onClick={() => setEditModal(null)}>Annulla</button>
+                  <button className="btn btn-primary" onClick={updateBetOdds}>Salva Quota</button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {toast && <div className={`toast toast-${toast.type}`} onClick={() => setToast(null)}>{toast.message}</div>}

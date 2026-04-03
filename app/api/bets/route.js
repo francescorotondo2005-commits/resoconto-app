@@ -94,13 +94,23 @@ export async function POST(request) {
   }
 }
 
-// PATCH - Update bet outcome
+// PATCH - Update bet (outcome, profit, actual_odds, edge)
 export async function PATCH(request) {
   try {
-    const { id, outcome, profit } = await request.json();
+    const data = await request.json();
     const db = await getDb();
 
-    await db.execute({ sql: 'UPDATE bets SET outcome = ?, profit = ? WHERE id = ?', args: [outcome, profit, id] });
+    if (data.action === 'edit_odds') {
+      await db.execute({ 
+        sql: 'UPDATE bets SET actual_odds = ?, edge = ? WHERE id = ?', 
+        args: [data.actual_odds, data.edge, data.id] 
+      });
+    } else {
+      await db.execute({ 
+        sql: 'UPDATE bets SET outcome = ?, profit = ? WHERE id = ?', 
+        args: [data.outcome, data.profit, data.id] 
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
