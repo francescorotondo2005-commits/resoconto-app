@@ -109,9 +109,19 @@ export async function POST(request) {
       console.error('Error loading custom markets:', e);
     }
 
+    // Deduplicate markets (in case a custom market overrides/matches a default one)
+    const uniqueMarkets = [];
+    const seenMarkets = new Set();
+    for (const mkt of allMarkets) {
+      if (!seenMarkets.has(mkt.name)) {
+        seenMarkets.add(mkt.name);
+        uniqueMarkets.push(mkt);
+      }
+    }
+
     const results = [];
 
-    for (const market of allMarkets) {
+    for (const market of uniqueMarkets) {
       let ev, sd, cv, probability;
 
       if (market.type === 'over_under') {
