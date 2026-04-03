@@ -30,7 +30,28 @@ export default function DatabasePage() {
   const [importResult, setImportResult] = useState(null);
   const [viewMode, setViewMode] = useState('add'); // 'add' | 'view' | 'import'
 
-  useEffect(() => { loadMatches(); }, [league]);
+  const [teams, setTeams] = useState([]);
+  const [referees, setReferees] = useState([]);
+
+  useEffect(() => { 
+    loadMatches(); 
+  }, [league]);
+
+  useEffect(() => { 
+    loadTeams(); 
+  }, []);
+
+  async function loadTeams() {
+    try {
+      const res = await fetch('/api/matches');
+      const data = await res.json();
+      setTeams(data.teams || []);
+      setReferees(data.referees || []);
+    } catch (e) { console.error(e); }
+  }
+
+  const leagueTeams = teams.filter(t => t.league === form.league).map(t => t.name);
+  const leagueReferees = referees.filter(r => r.league === form.league).map(r => r.referee)
 
   async function loadMatches() {
     setLoading(true);
@@ -143,13 +164,20 @@ export default function DatabasePage() {
                 </div>
                 <div className="input-group">
                   <label>Squadra Casa</label>
-                  <input type="text" value={form.home_team} onChange={e => handleFormChange('home_team', e.target.value)} placeholder="es. Sassuolo" required />
+                  <input type="text" list="db-teams-list" value={form.home_team} onChange={e => handleFormChange('home_team', e.target.value)} placeholder="es. Sassuolo" required />
                 </div>
                 <div className="input-group">
                   <label>Squadra Ospite</label>
-                  <input type="text" value={form.away_team} onChange={e => handleFormChange('away_team', e.target.value)} placeholder="es. Cagliari" required />
+                  <input type="text" list="db-teams-list" value={form.away_team} onChange={e => handleFormChange('away_team', e.target.value)} placeholder="es. Cagliari" required />
                 </div>
               </div>
+
+              <datalist id="db-teams-list">
+                {leagueTeams.map(t => <option key={t} value={t} />)}
+              </datalist>
+              <datalist id="db-referees-list">
+                {leagueReferees.map(r => <option key={r} value={r} />)}
+              </datalist>
 
               <h4 style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '16px 0 12px', borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>Statistiche Partita</h4>
               
@@ -179,7 +207,7 @@ export default function DatabasePage() {
               <div className="form-row" style={{ marginTop: 16 }}>
                 <div className="input-group">
                   <label>Arbitro</label>
-                  <input type="text" value={form.referee} onChange={e => handleFormChange('referee', e.target.value)} placeholder="es. Massa" />
+                  <input type="text" list="db-referees-list" value={form.referee} onChange={e => handleFormChange('referee', e.target.value)} placeholder="es. Massa" />
                 </div>
                 {form.league === 'SerieA' && (
                   <div className="input-group">
