@@ -192,15 +192,28 @@ function AnalysisContent() {
     }
   }
 
+  // Formatta in modo identico a lib/markets.js
+  function formatCustomName(stat, type, scope, direction, line, esito) {
+    const labelMap = { gol: 'GOL', tiri: 'TIRI', tip: 'TIRI IN PORTA', falli: 'FALLI', corner: 'CORNER', cartellini: 'CARTELLINI', parate: 'PARATE' };
+    const scopeLabel = { totale: '', casa: ' CASA', ospite: ' OSPITE' };
+    const fullLabel = `${labelMap[stat] || stat.toUpperCase()}${scopeLabel[scope] || ''}`;
+    if (type === '1x2') return `1X2 ${fullLabel}: ${esito}`;
+    const lineStr = line % 1 === 0.5 ? `${Math.floor(line)},5` : `${line}`;
+    return `${direction === 'over' ? 'OVER' : 'UNDER'} ${lineStr} ${fullLabel}`;
+  }
+
   // Add Custom Bet Form handler
   async function handleAddCustomBet() {
     if (!matchKey) return;
     const isOverUnder = customBet.type === 'over_under';
     
-    // Construct fake market name for DB uniqueness
-    const dir = isOverUnder ? (customBet.direction === 'over' ? 'OVER' : 'UNDER') : '1X2';
-    const num = isOverUnder ? customBet.line : customBet.esito;
-    const marketName = `CUSTOM_${dir}_${num}_${customBet.stat}_${customBet.scope}`;
+    // Costruiamo il market_name ESATTAMENTE UGUALE al display name così la UI la riconoscerà
+    const marketName = formatCustomName(
+      customBet.stat, customBet.type, customBet.scope, 
+      isOverUnder ? customBet.direction : null, 
+      isOverUnder ? customBet.line : null, 
+      !isOverUnder ? customBet.esito : null
+    );
 
     try {
       await fetch('/api/analysis/odds', {
