@@ -74,6 +74,11 @@ function ValueBetsContent() {
     if (selectedBets.some(b => `${b.matchKey}-${b.name}` === key)) {
       setSelectedBets(selectedBets.filter(b => `${b.matchKey}-${b.name}` !== key));
     } else {
+      // Vincolo: Stesso Bookmaker
+      if (selectedBets.length > 0 && selectedBets[0].bookmaker !== bet.bookmaker) {
+        setToast({ type: 'error', message: `Impossibile unire: questa quota è di ${bet.bookmaker}, la tua multipla usa ${selectedBets[0].bookmaker}.` });
+        return;
+      }
       setSelectedBets([...selectedBets, bet]);
     }
   };
@@ -251,7 +256,7 @@ function ValueBetsContent() {
                     ev: 0, sd: 0, cv: 0, // Dati aggregati omettevoli
                     probability: m.combinedProb,
                     fairOdds: 1 / m.combinedProb,
-                    minOdds: null,
+                    minOdds: 0, // Workaround SQLite NOT NULL constraint
                     actualOdds: m.combinedOdds,
                     bookmaker: m.bookmaker,
                     edge: m.combinedEdge
