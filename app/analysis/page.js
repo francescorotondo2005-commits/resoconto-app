@@ -43,17 +43,6 @@ function AnalysisContent() {
   // Modals and Toasts
   const [betModal, setBetModal] = useState(null);
   const [toast, setToast] = useState(null);
-  
-  // Custom Bet Form State
-  const [showCustomBet, setShowCustomBet] = useState(false);
-  const [customBet, setCustomBet] = useState({
-    stat: 'gol',
-    type: 'over_under',
-    scope: 'casa',
-    line: 0.5,
-    direction: 'over',
-    esito: '1'
-  });
 
   const matchKey = league && homeTeam && awayTeam ? `${league}|${homeTeam}|${awayTeam}` : null;
 
@@ -192,54 +181,7 @@ function AnalysisContent() {
     }
   }
 
-  // Add Custom Bet Form handler
-  async function handleAddCustomBet() {
-    if (!matchKey) return;
-    const isOverUnder = customBet.type === 'over_under';
-    
-    // Costruisci il nome esatto come farà generateCustomMarket nel backend
-    const labelMap = {
-      gol: 'GOL', tiri: 'TIRI', tip: 'TIRI IN PORTA', falli: 'FALLI',
-      corner: 'CORNER', cartellini: 'CARTELLINI', parate: 'PARATE',
-    };
-    const scopeLabel = { totale: '', casa: ' CASA', ospite: ' OSPITE' };
-    const baseLabel = labelMap[customBet.stat] || customBet.stat.toUpperCase();
-    const fullLabel = `${baseLabel}${scopeLabel[customBet.scope] || ''}`;
 
-    let marketName = '';
-    if (isOverUnder) {
-      const lineStr = customBet.line % 1 === 0.5 ? `${Math.floor(customBet.line)},5` : `${customBet.line}`;
-      const dirLabel = customBet.direction === 'over' ? 'OVER' : 'UNDER';
-      marketName = `${dirLabel} ${lineStr} ${fullLabel}`;
-    } else {
-      marketName = `1X2 ${fullLabel}: ${customBet.esito}`;
-    }
-
-    try {
-      await fetch('/api/analysis/odds', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          matchKey, 
-          marketName, 
-          isCustom: true,
-          customDef: {
-            stat: customBet.stat,
-            type: customBet.type,
-            scope: customBet.scope,
-            direction: isOverUnder ? customBet.direction : null,
-            line: isOverUnder ? customBet.line : null,
-            esito: !isOverUnder ? customBet.esito : null
-          }
-        })
-      });
-      setToast({ type: 'success', message: 'Scommessa aggiunta! Sto ricalcolando...' });
-      setShowCustomBet(false);
-      runAnalysis(); // Re-run to fetch calculating the new market
-    } catch (e) {
-      setToast({ type: 'error', message: e.message });
-    }
-  }
 
   async function clearAllOdds() {
     if (!matchKey) return;
@@ -494,9 +436,6 @@ function AnalysisContent() {
                 Solo Value Bet
               </label>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
-                <button className="btn btn-secondary btn-sm" onClick={() => setShowCustomBet(true)}>
-                  + Scommessa Custom
-                </button>
                 <button className="btn btn-danger btn-sm" onClick={clearAllOdds} disabled={Object.keys(odds).length === 0}>
                   🗑️ Cancella Quote
                 </button>
@@ -608,75 +547,6 @@ function AnalysisContent() {
           </>
         )}
 
-        {/* Custom Bet Modal */}
-        {showCustomBet && (
-          <div className="modal-overlay" onClick={() => setShowCustomBet(false)}>
-            <div className="modal" onClick={e => e.stopPropagation()}>
-              <h2 className="modal-title">✚ Aggiungi Scommessa Custom</h2>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
-                Inserisci i parametri della linea esatta che vuoi calcolare. Il sistema attingerà alle formule esistenti per elaborarne la probabilità e l'EV, come se fosse nativa.
-              </p>
-              
-              <div className="form-row">
-                <div className="input-group">
-                  <label>Statistica</label>
-                  <select value={customBet.stat} onChange={e => setCustomBet({...customBet, stat: e.target.value})}>
-                    {STATS_LIST.map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
-                  </select>
-                </div>
-                <div className="input-group">
-                  <label>Tipo Mercato</label>
-                  <select value={customBet.type} onChange={e => setCustomBet({...customBet, type: e.target.value})}>
-                    <option value="over_under">Over/Under</option>
-                    <option value="1x2">1 X 2</option>
-                  </select>
-                </div>
-              </div>
-
-              {customBet.type === 'over_under' ? (
-                <>
-                  <div className="form-row">
-                    <div className="input-group">
-                      <label>Scope</label>
-                      <select value={customBet.scope} onChange={e => setCustomBet({...customBet, scope: e.target.value})}>
-                        <option value="totale">Totale (Entrambe)</option>
-                        <option value="casa">Solo {homeTeam || 'Casa'}</option>
-                        <option value="ospite">Solo {awayTeam || 'Ospite'}</option>
-                      </select>
-                    </div>
-                    <div className="input-group">
-                      <label>Direzione</label>
-                      <select value={customBet.direction} onChange={e => setCustomBet({...customBet, direction: e.target.value})}>
-                        <option value="over">Over</option>
-                        <option value="under">Under</option>
-                      </select>
-                    </div>
-                    <div className="input-group">
-                      <label>Linea (es. 6.5)</label>
-                      <input type="number" step="0.5" min="0.5" value={customBet.line} onChange={e => setCustomBet({...customBet, line: parseFloat(e.target.value)})} />
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="form-row">
-                  <div className="input-group">
-                    <label>Esito 1X2</label>
-                    <select value={customBet.esito} onChange={e => setCustomBet({...customBet, esito: e.target.value})}>
-                      <option value="1">1 (Vittoria Casa)</option>
-                      <option value="X">X (Pareggio)</option>
-                      <option value="2">2 (Vittoria Ospite)</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              <div className="form-actions" style={{ marginTop: 24 }}>
-                <button className="btn btn-secondary" onClick={() => setShowCustomBet(false)} style={{ flex: 1 }}>Annulla</button>
-                <button className="btn btn-primary" onClick={handleAddCustomBet} style={{ flex: 1 }}>Calcola e Aggiungi</button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Bet Modal */}
         {betModal && (
