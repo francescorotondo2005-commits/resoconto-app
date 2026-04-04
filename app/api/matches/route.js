@@ -166,20 +166,9 @@ export async function POST(request) {
       console.error('Error during auto-backtesting', e);
     }
 
-    // 2. Grada tutte le scommesse reali (PENDING) attive su questo match
+    // 2. Grada tutte le scommesse (singole e MULTIPLE) associate a questo match
     try {
-      const pendingBetsRes = await db.execute({ sql: 'SELECT * FROM bets WHERE outcome = ? AND league = ? AND match_description = ?', args: ['PENDING', match.league, descKey] });
-      const pendingBets = pendingBetsRes.rows;
-      
-      for (const b of pendingBets) {
-        const out = gradeBet(b.bet_name, match);
-        if (out !== 'PENDING') {
-          let profit = 0;
-          if (out === 'WIN') profit = (b.stake * b.actual_odds) - b.stake;
-          else if (out === 'LOSS') profit = -b.stake;
-          await db.execute({ sql: 'UPDATE bets SET outcome = ?, profit = ? WHERE id = ?', args: [out, profit, b.id] });
-        }
-      }
+      await evaluateBetsRelatedToMatch(db, descKey);
     } catch (e) {
       console.error('Error grading pending bets', e);
     }
@@ -253,18 +242,9 @@ export async function PATCH(request) {
       console.error('Error regrading backtest_bets on PATCH', e);
     }
 
-    // Ricalcola i pending bets / scommesse classiche associate a questa partita
+    // Ricalcola i pending bets / scommesse classiche e MULTIPLE associate a questa partita
     try {
-      const betsRes = await db.execute({ sql: 'SELECT * FROM bets WHERE league = ? AND match_description = ?', args: [match.league, descKey] });
-      for (const b of betsRes.rows) {
-        const out = gradeBet(b.bet_name, match);
-        if (out !== 'PENDING') {
-          let profit = 0;
-          if (out === 'WIN') profit = (b.stake * b.actual_odds) - b.stake;
-          else if (out === 'LOSS') profit = -b.stake;
-          await db.execute({ sql: 'UPDATE bets SET outcome = ?, profit = ? WHERE id = ?', args: [out, profit, b.id] });
-        }
-      }
+      await evaluateBetsRelatedToMatch(db, descKey);
     } catch (e) {
       console.error('Error regrading bets on PATCH', e);
     }
@@ -272,5 +252,79 @@ export async function PATCH(request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// --- HELPER DI REFERTAZIONE GLOBALE (SINGOLE E MULTIPLE) ---
+async function evaluateBetsRelatedToMatch(db, descKey) {
+  // Trova tutte le scommesse che includono questo match, sia se sono singole, sia se sono porzioni di una multipla
+  const betsRes = await db.execute({ 
+    sql: `SELECT * FROM bets WHERE match_description = ? OR match_description LIKE ? OR match_description LIKE ? OR match_description LIKE ?`, 
+    args: [descKey, `${descKey} + %`, `% + ${descKey} + %`, `% + ${descKey}`] 
+  });
+
+  for (const b of betsRes.rows) {
+    if (b.match_description.includes(' + ')) {
+      // MULTIPLA
+      const matchDescs = b.match_description.split(' + ');
+      const legNames = b.bet_name.split(' + ');
+      
+      let allWin = true;
+      let anyPending = false;
+      let anyVoid = false;
+
+      for (let i = 0; i < matchDescs.length; i++) {
+         const legDesc = matchDescs[i].trim();
+         const [h, a] = legDesc.split(' - ');
+         // Trova il match nel DB
+         const legMatchRes = await db.execute({
+            sql: 'SELECT * FROM matches WHERE home_team = ? AND away_team = ? ORDER BY date DESC LIMIT 1',
+            args: [h.trim(), a.trim()]
+         });
+         
+         if (legMatchRes.rows.length === 0) {
+            anyPending = true;
+         } else {
+            const legStat = legMatchRes.rows[0];
+            const res = gradeBet(legNames[i].trim(), legStat);
+            if (res === 'LOSS') {
+               allWin = false;
+               break; // Multipla persa, non c'è bisogno di guardare le altre!
+            }
+            if (res === 'PENDING') anyPending = true;
+            if (res === 'VOID') anyVoid = true;
+         }
+      }
+      
+      let finalOut = 'PENDING';
+      if (!allWin) finalOut = 'LOSS';
+      else if (anyPending) finalOut = 'PENDING';
+      else if (anyVoid) finalOut = 'VOID';
+      else finalOut = 'WIN';
+
+      let profit = null;
+      if (finalOut === 'WIN') profit = (b.stake * b.actual_odds) - b.stake;
+      else if (finalOut === 'LOSS') profit = -b.stake;
+      
+      await db.execute({ sql: 'UPDATE bets SET outcome = ?, profit = ? WHERE id = ?', args: [finalOut, profit, b.id] });
+
+    } else {
+      // SINGOLA
+      const [h, a] = b.match_description.split(' - ');
+      const legMatchRes = await db.execute({
+          sql: 'SELECT * FROM matches WHERE home_team = ? AND away_team = ? ORDER BY date DESC LIMIT 1',
+          args: [h.trim(), a.trim()]
+      });
+      if (legMatchRes.rows.length > 0) {
+         const matchInfo = legMatchRes.rows[0];
+         const out = gradeBet(b.bet_name, matchInfo);
+         
+         let profit = null;
+         if (out === 'WIN') profit = (b.stake * b.actual_odds) - b.stake;
+         else if (out === 'LOSS') profit = -b.stake;
+         
+         await db.execute({ sql: 'UPDATE bets SET outcome = ?, profit = ? WHERE id = ?', args: [out, profit, b.id] });
+      }
+    }
   }
 }
