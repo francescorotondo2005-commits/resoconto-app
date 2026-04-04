@@ -76,6 +76,7 @@ export default function TrackerPage() {
           action: 'edit_odds',
           id: editModal.bet.id,
           actual_odds: editModal.newOdds,
+          bookmaker: editModal.newBookmaker,
           edge,
           profit: newProfit
         }),
@@ -245,7 +246,7 @@ export default function TrackerPage() {
                         {b.profit != null ? `€${b.profit.toFixed(2)}` : '—'}
                       </td>
                       <td>
-                        <button className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', color: 'var(--blue)' }} onClick={() => setEditModal({ bet: b, newOdds: b.actual_odds })} title="Modifica Scommessa">
+                        <button className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', color: 'var(--blue)' }} onClick={() => setEditModal({ bet: b, newOdds: b.actual_odds, newBookmaker: b.bookmaker })} title="Modifica Scommessa">
                           ✏️
                         </button>
                       </td>
@@ -376,9 +377,9 @@ export default function TrackerPage() {
                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Probabilità originaria: {(editModal.bet.probability * 100).toFixed(1)}%</div>
               </div>
               
-              <div className="form-row">
+              <div className="form-row" style={{ gridTemplateColumns: '1fr 1fr' }}>
                 <div className="input-group">
-                  <label>Aggiorna Quota (Reale)</label>
+                  <label>Aggiorna Quota</label>
                   <input 
                     type="number" 
                     step="0.01" 
@@ -386,6 +387,14 @@ export default function TrackerPage() {
                     value={editModal.newOdds} 
                     onChange={e => setEditModal({ ...editModal, newOdds: parseFloat(e.target.value) || '' })} 
                     autoFocus
+                  />
+                </div>
+                <div className="input-group">
+                  <label>Bookmaker</label>
+                  <input 
+                    type="text" 
+                    value={editModal.newBookmaker} 
+                    onChange={e => setEditModal({ ...editModal, newBookmaker: e.target.value })}
                   />
                 </div>
               </div>

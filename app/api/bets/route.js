@@ -102,8 +102,8 @@ export async function PATCH(request) {
 
     if (data.action === 'edit_odds') {
       await db.execute({ 
-        sql: 'UPDATE bets SET actual_odds = ?, edge = ?, profit = ? WHERE id = ?', 
-        args: [data.actual_odds, data.edge, data.profit, data.id] 
+        sql: 'UPDATE bets SET actual_odds = ?, bookmaker = ?, edge = ?, profit = ? WHERE id = ?', 
+        args: [data.actual_odds, data.bookmaker, data.edge, data.profit, data.id] 
       });
     } else {
       await db.execute({ 
