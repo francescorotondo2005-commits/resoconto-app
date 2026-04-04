@@ -68,18 +68,32 @@ function ValueBetsContent() {
   }
 
   // Helpers per Bet Builder
-  const toggleBetSelection = (bet) => {
-    // La chiave unica della bet
-    const key = `${bet.matchKey}-${bet.name}`;
-    if (selectedBets.some(b => `${b.matchKey}-${b.name}` === key)) {
-      setSelectedBets(selectedBets.filter(b => `${b.matchKey}-${b.name}` !== key));
+  const toggleBetSelection = (bet, bookmaker) => {
+    // Genera una chiave unica includendo il bookmaker scelto
+    const key = `${bet.matchKey}-${bet.name}-${bookmaker}`;
+    
+    if (selectedBets.some(b => b.selectionKey === key)) {
+      // Deseleziona se già presente
+      setSelectedBets(selectedBets.filter(b => b.selectionKey !== key));
     } else {
       // Vincolo: Stesso Bookmaker
-      if (selectedBets.length > 0 && selectedBets[0].bookmaker !== bet.bookmaker) {
-        setToast({ type: 'error', message: `Impossibile unire: questa quota è di ${bet.bookmaker}, la tua multipla usa ${selectedBets[0].bookmaker}.` });
+      if (selectedBets.length > 0 && selectedBets[0].bookmaker !== bookmaker) {
+        setToast({ type: 'error', message: `Impossibile unire: questa quota è di ${bookmaker}, la tua multipla usa ${selectedBets[0].bookmaker}.` });
         return;
       }
-      setSelectedBets([...selectedBets, bet]);
+      
+      const odds = bookmaker === 'Sportium' ? bet.odds_sportium : bet.odds_sportbet;
+      const edge = bookmaker === 'Sportium' ? bet.edge_sportium : bet.edge_sportbet;
+
+      const newSel = {
+         ...bet,
+         selectionKey: key,
+         bookmaker: bookmaker,     // override con la scelta esplicita
+         actualOdds: odds,         // override
+         edge: edge                // override
+      };
+      
+      setSelectedBets([...selectedBets, newSel]);
     }
   };
 
@@ -140,7 +154,6 @@ function ValueBetsContent() {
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: '40px', textAlign: 'center' }}>✓</th>
                   <th>Partita</th>
                   <th>Scommessa</th>
                   <th>Cat.</th>
@@ -148,8 +161,8 @@ function ValueBetsContent() {
                   <th>SD</th>
                   <th>CV</th>
                   <th>Prob.</th>
-                  <th>Edge</th>
-                  <th>Quota</th>
+                  <th>Edge Max</th>
+                  <th>Quote (Clicca per Multipla)</th>
                   <th>Stats Storiche</th>
                   <th>Azione</th>
                 </tr>
@@ -157,17 +170,12 @@ function ValueBetsContent() {
               <tbody>
                 {bets.map((bet, i) => {
                   const key = `${bet.matchKey}-${bet.name}`;
-                  const isSelected = selectedBets.some(b => `${b.matchKey}-${b.name}` === key);
+                  const isSelectedSportium = selectedBets.some(b => b.selectionKey === `${key}-Sportium`);
+                  const isSelectedSportbet = selectedBets.some(b => b.selectionKey === `${key}-Sportbet`);
+                  const hasSelection = isSelectedSportium || isSelectedSportbet;
+                  
                   return (
-                  <tr key={`${key}-${i}`} className={isSelected ? 'row-highlight' : ''}>
-                    <td style={{ textAlign: 'center' }}>
-                      <input 
-                        type="checkbox" 
-                        checked={isSelected}
-                        onChange={() => toggleBetSelection(bet)}
-                        style={{ cursor: 'pointer', transform: 'scale(1.2)' }}
-                      />
-                    </td>
+                  <tr key={`${key}-${i}`} className={hasSelection ? 'row-highlight' : ''}>
                     <td style={{ fontWeight: 600, fontSize: 13, color: 'var(--blue)' }}>{bet.matchStr}</td>
                     <td style={{ fontWeight: 600, fontSize: 13 }}>{bet.name}</td>
                     <td><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{bet.category}</span></td>
@@ -181,8 +189,36 @@ function ValueBetsContent() {
                       </span>
                     </td>
                     <td>
-                      <div style={{ fontWeight: 700, fontSize: 14 }}>{bet.actualOdds}</div>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{bet.bookmaker}</div>
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        {bet.odds_sportium && (
+                          <div 
+                            onClick={() => toggleBetSelection(bet, 'Sportium')}
+                            style={{ 
+                              padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer',
+                              opacity: selectedBets.length > 0 && selectedBets[0].bookmaker !== 'Sportium' ? 0.3 : 1,
+                              background: isSelectedSportium ? 'var(--primary)' : 'transparent',
+                              transition: 'all 0.2s', textAlign: 'center', minWidth: '60px'
+                            }}
+                          >
+                            <div style={{ fontWeight: 700, fontSize: 13, color: isSelectedSportium ? '#fff' : 'var(--text-primary)' }}>{bet.odds_sportium.toFixed(2)}</div>
+                            <div style={{ fontSize: 9, color: isSelectedSportium ? 'rgba(255,255,255,0.8)' : 'var(--text-muted)' }}>SPORTIUM</div>
+                          </div>
+                        )}
+                        {bet.odds_sportbet && (
+                          <div 
+                            onClick={() => toggleBetSelection(bet, 'Sportbet')}
+                            style={{ 
+                              padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer',
+                              opacity: selectedBets.length > 0 && selectedBets[0].bookmaker !== 'Sportbet' ? 0.3 : 1,
+                              background: isSelectedSportbet ? 'var(--primary)' : 'transparent',
+                              transition: 'all 0.2s', textAlign: 'center', minWidth: '60px'
+                            }}
+                          >
+                            <div style={{ fontWeight: 700, fontSize: 13, color: isSelectedSportbet ? '#fff' : 'var(--text-primary)' }}>{bet.odds_sportbet.toFixed(2)}</div>
+                            <div style={{ fontSize: 9, color: isSelectedSportbet ? 'rgba(255,255,255,0.8)' : 'var(--text-muted)' }}>SPORTBET</div>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td>
                       <button 

@@ -396,6 +396,10 @@ export async function GET(request) {
             bookmaker: bestBook,
             actualOdds,
             edge: Math.round(bestEdge * 10000) / 10000,
+            odds_sportium: mktRow.sportium || null,
+            edge_sportium: sportiumEdge > -900 ? Math.round(sportiumEdge * 10000) / 10000 : null,
+            odds_sportbet: mktRow.sportbet || null,
+            edge_sportbet: sportbetEdge > -900 ? Math.round(sportbetEdge * 10000) / 10000 : null,
             historyMessage,
             refereeRating: refereeRating, 
           });
