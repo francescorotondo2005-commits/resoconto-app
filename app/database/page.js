@@ -148,6 +148,52 @@ export default function DatabasePage() {
     setViewMode('add');
   }
 
+  async function handleExportDB() {
+    setLoading(true);
+    try {
+       const res = await fetch('/api/matches?limit=99999');
+       const data = await res.json();
+       const exportMatches = data.matches || [];
+       if (exportMatches.length === 0) throw new Error('Nessuna partita da esportare');
+       
+       const header = Object.keys(exportMatches[0]).join(',');
+       const rows = exportMatches.map(m => Object.values(m).map(v => `"${v !== null ? String(v).replace(/"/g, '""') : ''}"`).join(','));
+       const csv = [header, ...rows].join('\n');
+       
+       const blob = new Blob([csv], { type: 'text/csv' });
+       const url = URL.createObjectURL(blob);
+       const a = document.createElement('a');
+       a.href = url;
+       a.download = `resoconto_matches_export.csv`;
+       a.click();
+       URL.revokeObjectURL(url);
+    } catch (e) { setToast({ type: 'error', message: e.message }); }
+    setLoading(false);
+  }
+
+  async function handleExportBacktest() {
+    setLoading(true);
+    try {
+       const res = await fetch('/api/backtest');
+       const data = await res.json();
+       const backtests = data.backtestBets || [];
+       if (backtests.length === 0) throw new Error('Nessun backtest trovato da esportare');
+       
+       const header = Object.keys(backtests[0]).join(',');
+       const rows = backtests.map(b => Object.values(b).map(v => `"${v !== null ? String(v).replace(/"/g, '""') : ''}"`).join(','));
+       const csv = [header, ...rows].join('\n');
+       
+       const blob = new Blob([csv], { type: 'text/csv' });
+       const url = URL.createObjectURL(blob);
+       const a = document.createElement('a');
+       a.href = url;
+       a.download = `resoconto_backtest_export.csv`;
+       a.click();
+       URL.revokeObjectURL(url);
+    } catch (e) { setToast({ type: 'error', message: e.message }); }
+    setLoading(false);
+  }
+
   function handleCancelEdit() {
     setForm({ ...EMPTY_MATCH, league: form.league, date: form.date });
     setEditMatchId(null);
@@ -262,13 +308,19 @@ export default function DatabasePage() {
         {/* View DB */}
         {viewMode === 'view' && (
           <>
-            <div style={{ marginBottom: 16 }}>
-              <select value={league} onChange={e => setLeague(e.target.value)} style={{ width: 200 }}>
-                {LEAGUES.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
-              <span style={{ marginLeft: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
-                {matches.length} partite (ultime 50)
-              </span>
+            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <select value={league} onChange={e => setLeague(e.target.value)} style={{ width: 200, padding: '6px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+                  {LEAGUES.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
+                <span style={{ marginLeft: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
+                  {matches.length} partite (ultime 50 per preview)
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn btn-secondary btn-sm" onClick={handleExportDB} disabled={loading}>📥 Export DB</button>
+                <button className="btn btn-primary btn-sm" onClick={handleExportBacktest} disabled={loading}>📥 Export Backtest</button>
+              </div>
             </div>
             <div className="table-container" style={{ maxHeight: '70vh' }}>
               <table>
