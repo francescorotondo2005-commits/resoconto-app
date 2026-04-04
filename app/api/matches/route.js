@@ -210,3 +210,67 @@ export async function DELETE(request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+// PATCH - Update match statistics and auto-regrade anything associated
+export async function PATCH(request) {
+  try {
+    const match = await request.json();
+    if (!match.id) throw new Error('ID partita mancante');
+    const db = await getDb();
+
+    // Aggiorna metriche
+    await db.execute({
+      sql: `
+        UPDATE matches SET
+          home_team = ?, away_team = ?, date = ?, matchday = ?, referee = ?,
+          home_goals = ?, away_goals = ?, home_shots = ?, away_shots = ?, home_sot = ?, away_sot = ?,
+          home_fouls = ?, away_fouls = ?, home_corners = ?, away_corners = ?,
+          home_yellows = ?, away_yellows = ?, home_reds = ?, away_reds = ?,
+          home_saves = ?, away_saves = ?
+        WHERE id = ?
+      `,
+      args: [
+        match.home_team, match.away_team, match.date, match.matchday || null, match.referee || null,
+        match.home_goals, match.away_goals, match.home_shots, match.away_shots, match.home_sot, match.away_sot,
+        match.home_fouls, match.away_fouls, match.home_corners, match.away_corners,
+        match.home_yellows, match.away_yellows, match.home_reds, match.away_reds,
+        match.home_saves || null, match.away_saves || null,
+        match.id
+      ]
+    });
+
+    const matchKey = `${match.league}|${match.home_team}|${match.away_team}`;
+    const descKey = `${match.home_team} - ${match.away_team}`;
+
+    // Ricalcola il Backtest se presente (il record backtest_bets rimane intatto, cambia solo esito)
+    try {
+      const backtestRes = await db.execute({ sql: 'SELECT * FROM backtest_bets WHERE match_key = ?', args: [matchKey] });
+      for (const b of backtestRes.rows) {
+        const out = gradeBet(b.bet_name, match);
+        await db.execute({ sql: 'UPDATE backtest_bets SET outcome = ? WHERE id = ?', args: [out, b.id] });
+      }
+    } catch (e) {
+      console.error('Error regrading backtest_bets on PATCH', e);
+    }
+
+    // Ricalcola i pending bets / scommesse classiche associate a questa partita
+    try {
+      const betsRes = await db.execute({ sql: 'SELECT * FROM bets WHERE league = ? AND match_description = ?', args: [match.league, descKey] });
+      for (const b of betsRes.rows) {
+        const out = gradeBet(b.bet_name, match);
+        if (out !== 'PENDING') {
+          let profit = 0;
+          if (out === 'WIN') profit = (b.stake * b.actual_odds) - b.stake;
+          else if (out === 'LOSS') profit = -b.stake;
+          await db.execute({ sql: 'UPDATE bets SET outcome = ?, profit = ? WHERE id = ?', args: [out, profit, b.id] });
+        }
+      }
+    } catch (e) {
+      console.error('Error regrading bets on PATCH', e);
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

@@ -29,6 +29,7 @@ export default function DatabasePage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [viewMode, setViewMode] = useState('add'); // 'add' | 'view' | 'import'
+  const [editMatchId, setEditMatchId] = useState(null);
 
   const [teams, setTeams] = useState([]);
   const [referees, setReferees] = useState([]);
@@ -70,28 +71,39 @@ export default function DatabasePage() {
   async function handleSubmit(e) {
     e.preventDefault();
     try {
-      const res = await fetch('/api/matches', {
-        method: 'POST',
+      const url = '/api/matches';
+      const method = editMatchId ? 'PATCH' : 'POST';
+      
+      const payload = {
+        ...form,
+        id: editMatchId,
+        home_goals: Number(form.home_goals), away_goals: Number(form.away_goals),
+        home_shots: Number(form.home_shots), away_shots: Number(form.away_shots),
+        home_sot: Number(form.home_sot), away_sot: Number(form.away_sot),
+        home_fouls: Number(form.home_fouls), away_fouls: Number(form.away_fouls),
+        home_corners: Number(form.home_corners), away_corners: Number(form.away_corners),
+        home_yellows: Number(form.home_yellows), away_yellows: Number(form.away_yellows),
+        home_reds: Number(form.home_reds), away_reds: Number(form.away_reds),
+        home_saves: form.home_saves ? Number(form.home_saves) : null,
+        away_saves: form.away_saves ? Number(form.away_saves) : null,
+      };
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          home_goals: Number(form.home_goals), away_goals: Number(form.away_goals),
-          home_shots: Number(form.home_shots), away_shots: Number(form.away_shots),
-          home_sot: Number(form.home_sot), away_sot: Number(form.away_sot),
-          home_fouls: Number(form.home_fouls), away_fouls: Number(form.away_fouls),
-          home_corners: Number(form.home_corners), away_corners: Number(form.away_corners),
-          home_yellows: Number(form.home_yellows), away_yellows: Number(form.away_yellows),
-          home_reds: Number(form.home_reds), away_reds: Number(form.away_reds),
-          home_saves: form.home_saves ? Number(form.home_saves) : null,
-          away_saves: form.away_saves ? Number(form.away_saves) : null,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
-        setToast({ type: 'success', message: `✅ ${form.home_team} vs ${form.away_team} salvata!` });
+        setToast({ type: 'success', message: `✅ ${form.home_team} vs ${form.away_team} ${editMatchId ? 'modificata' : 'salvata'}!` });
         setForm({ ...EMPTY_MATCH, league: form.league, date: form.date });
+        setEditMatchId(null);
+        if (editMatchId) setViewMode('view');
         loadMatches();
         setTimeout(() => setToast(null), 3000);
+      } else {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Errore salvataggio');
       }
     } catch (e) {
       setToast({ type: 'error', message: e.message });
@@ -119,7 +131,7 @@ export default function DatabasePage() {
   }
 
   async function handleDelete(id) {
-    if (!confirm('Eliminare questa partita?')) return;
+    if (!confirm('Eliminare questa partita? Verrà cancellato anche il relativo backtest.')) return;
     try {
       await fetch('/api/matches', {
         method: 'DELETE',
@@ -128,6 +140,18 @@ export default function DatabasePage() {
       });
       loadMatches();
     } catch (e) { console.error(e); }
+  }
+
+  function handleEdit(m) {
+    setForm(m);
+    setEditMatchId(m.id);
+    setViewMode('add');
+  }
+
+  function handleCancelEdit() {
+    setForm({ ...EMPTY_MATCH, league: form.league, date: form.date });
+    setEditMatchId(null);
+    setViewMode('view');
   }
 
   return (
@@ -149,7 +173,16 @@ export default function DatabasePage() {
         {/* Add Match Form */}
         {viewMode === 'add' && (
           <div className="card">
-            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20 }}>Inserimento Rapido</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 700 }}>
+                {editMatchId ? '✏️ Modifica Risultato Partita' : 'Inserimento Rapido'}
+              </h3>
+              {editMatchId && (
+                <button className="btn btn-secondary btn-sm" onClick={handleCancelEdit}>
+                  Annulla Modifica
+                </button>
+              )}
+            </div>
             <form onSubmit={handleSubmit}>
               <div className="form-row" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
                 <div className="input-group">
@@ -218,7 +251,9 @@ export default function DatabasePage() {
               </div>
 
               <div className="form-actions">
-                <button type="submit" className="btn btn-success btn-lg" style={{ flex: 1 }}>💾 Salva + Prossima</button>
+                <button type="submit" className="btn btn-success btn-lg" style={{ flex: 1 }}>
+                  {editMatchId ? '💾 Conferma Modifica' : '💾 Salva + Prossima'}
+                </button>
               </div>
             </form>
           </div>
@@ -258,7 +293,8 @@ export default function DatabasePage() {
                       <td>{m.home_yellows}-{m.away_yellows}</td>
                       <td>{m.home_reds}-{m.away_reds}</td>
                       <td style={{ fontSize: 12 }}>{m.referee || '—'}</td>
-                      <td>
+                      <td style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => handleEdit(m)}>✏️</button>
                         <button className="btn btn-danger btn-sm" onClick={() => handleDelete(m.id)}>✕</button>
                       </td>
                     </tr>
