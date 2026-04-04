@@ -14,6 +14,7 @@ export default function TrackerPage() {
   // Backtest
   const [backtestBets, setBacktestBets] = useState([]);
   const [backtestStats, setBacktestStats] = useState({});
+  const [minBacktestEdge, setMinBacktestEdge] = useState(0.15); // Default 15%
 
   const [toast, setToast] = useState(null);
   
@@ -117,15 +118,26 @@ export default function TrackerPage() {
     bankrollHistory.push(runningTotal);
   }
 
+  const filteredBacktestBets = backtestBets.filter(b => b.best_edge >= minBacktestEdge);
+  
   const backtestHistory = [];
   let btTotal = 0;
-  const sortedBT = [...(backtestBets.filter(b => b.outcome !== 'PENDING' && b.outcome !== 'VOID'))].sort((a, b) => 
+  let btWins = 0;
+  let btFinished = 0;
+  
+  const sortedBT = [...(filteredBacktestBets.filter(b => b.outcome !== 'PENDING' && b.outcome !== 'VOID'))].sort((a, b) => 
     new Date(a.created_at) - new Date(b.created_at)
   );
+  
   for (const b of sortedBT) {
+    btFinished++;
+    if (b.outcome === 'WIN') btWins++;
     btTotal += b.outcome === 'WIN' ? (Math.max(b.sportium || 1, b.sportbet || 1) - 1) : -1;
     backtestHistory.push(btTotal);
   }
+
+  const filteredHitRate = btFinished > 0 ? btWins / btFinished : 0;
+  const filteredYield = btFinished > 0 ? (btTotal / btFinished) : 0;
 
   return (
     <div className="app-layout">
@@ -265,32 +277,39 @@ export default function TrackerPage() {
         {activeTab === 'backtest' && (
           <>
             <div className="card" style={{ marginBottom: 20, background: 'rgba(108, 92, 231, 0.05)', borderColor: 'rgba(108, 92, 231, 0.2)' }}>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                <strong>Cosa vedo qui?</strong> Il sistema registra *ogni singola scommessa di valore* (Edge &gt; 0) calcolata in Analisi prima che le partite vengano refertate. Analizzando un grande volume di quote di valore giocate ipoteticamente a €1, misuriamo l'affidabilità reale del modello a prescindere dalle tue scelte tattiche personali.
-              </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0, flex: 1 }}>
+                  <strong>Cosa vedo qui?</strong> Il sistema registra *ogni scommessa* calcolata in Analisi prima che sia refertata.
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bg-secondary)', padding: '6px 16px', borderRadius: 'var(--radius-lg)' }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-primary)', textTransform: 'uppercase' }}>Filtra Edge Minimo:</label>
+                  <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 60, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(minBacktestEdge * 100)} onChange={e => setMinBacktestEdge(parseFloat(e.target.value) / 100 || 0)} />
+                  <span style={{ fontSize: 14, fontWeight: 600 }}>%</span>
+                </div>
+              </div>
             </div>
 
             <div className="stats-row">
               <div className="stat-card">
-                <div className="stat-label">Value Bet Evaluate</div>
-                <div className="stat-value">{backtestStats.total || 0}</div>
+                <div className="stat-label">Value Bet Evaluate ({Math.round(minBacktestEdge*100)}%+)</div>
+                <div className="stat-value">{filteredBacktestBets.length}</div>
               </div>
               <div className="stat-card">
                 <div className="stat-label">Hit Rate Modello</div>
-                <div className={`stat-value ${(backtestStats.hitRate || 0) >= 0.5 ? 'positive' : ''}`}>
-                  {backtestStats.hitRate ? `${(backtestStats.hitRate * 100).toFixed(1)}%` : '—'}
+                <div className={`stat-value ${filteredHitRate >= 0.5 ? 'positive' : ''}`}>
+                  {btFinished > 0 ? `${(filteredHitRate * 100).toFixed(1)}%` : '—'}
                 </div>
               </div>
               <div className="stat-card">
                 <div className="stat-label">P&L Teorico (@1€ unit)</div>
-                <div className={`stat-value ${(backtestStats.theoreticalProfit || 0) >= 0 ? 'positive' : 'negative'}`}>
-                  {(backtestStats.theoreticalProfit || 0) >= 0 ? '+' : ''}{(backtestStats.theoreticalProfit || 0).toFixed(2)} U
+                <div className={`stat-value ${btTotal >= 0 ? 'positive' : 'negative'}`}>
+                  {btTotal >= 0 ? '+' : ''}{btTotal.toFixed(2)} U
                 </div>
               </div>
               <div className="stat-card">
                 <div className="stat-label">Yield Netto</div>
-                <div className={`stat-value ${(backtestStats.yieldPercentage || 0) > 0 ? 'positive' : 'negative'}`}>
-                  {backtestStats.total ? `${((backtestStats.theoreticalProfit / backtestStats.total) * 100).toFixed(1)}%` : '—'}
+                <div className={`stat-value ${filteredYield > 0 ? 'positive' : 'negative'}`}>
+                  {btFinished > 0 ? `${(filteredYield * 100).toFixed(1)}%` : '—'}
                 </div>
               </div>
             </div>
@@ -330,7 +349,7 @@ export default function TrackerPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {backtestBets.map(b => (
+                  {filteredBacktestBets.map(b => (
                     <tr key={b.id}>
                       <td style={{ fontSize: 12 }}>{b.match_date}</td>
                       <td style={{ fontWeight: 600, fontSize: 12 }}>{b.match_key.replace(/\|/g, ' - ')}</td>
