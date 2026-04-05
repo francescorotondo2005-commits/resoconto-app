@@ -4,6 +4,7 @@ import { EV_AVANZATO, SD_AVANZATO, CV_CALC } from '@/lib/engine';
 import { PROB_BINOM_NEG, PROB_1X2_IBRIDO } from '@/lib/probability';
 import { getAllMarkets, getCategory, generateCustomMarket } from '@/lib/markets';
 import { gradeBet } from '@/lib/grading';
+import { INDICE_ARBITRO_AVANZATO } from '@/lib/referee';
 
 // GET - Fetch matches (with optional league filter)
 export async function GET(request) {
@@ -109,6 +110,26 @@ export async function POST(request) {
             ev: evsd[stat].casa.ev + evsd[stat].ospite.ev,
             sd: Math.sqrt(Math.pow(evsd[stat].casa.sd, 2) + Math.pow(evsd[stat].ospite.sd, 2)),
           };
+        }
+
+        // Applica l'Incidenza Arbitro se presente
+        if (match.referee) {
+          const matchReferee = match.referee;
+          const refFalli = INDICE_ARBITRO_AVANZATO(matchReferee, 'falli', pastMatches);
+          const refCartellini = INDICE_ARBITRO_AVANZATO(matchReferee, 'cartellini', pastMatches);
+
+          const applyRating = (statKey, rating) => {
+            if (!evsd[statKey]) return;
+            evsd[statKey].casa.ev *= rating;
+            evsd[statKey].casa.sd *= rating;
+            evsd[statKey].ospite.ev *= rating;
+            evsd[statKey].ospite.sd *= rating;
+            evsd[statKey].totale.ev *= rating;
+            evsd[statKey].totale.sd *= rating;
+          };
+
+          applyRating('falli', refFalli);
+          applyRating('cartellini', refCartellini);
         }
 
         // Genera tutti probabilità pre-match
