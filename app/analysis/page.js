@@ -81,6 +81,23 @@ function AnalysisContent() {
     } catch (e) { console.error('Errore pending matches:', e); }
   }
 
+  async function deletePendingMatch(matchKey) {
+    if (!confirm('Vuoi davvero eliminare questa partita dal menu Pending? Tutte le quote salvate per questa partita andranno perse.')) return;
+    try {
+      const res = await fetch(`/api/pending-matches?matchKey=${encodeURIComponent(matchKey)}`, { method: 'DELETE' });
+      if (res.ok) {
+        setToast({ type: 'success', message: 'Partita eliminata dal pending.' });
+        fetchPendingMatches();
+        // If we are currently viewing this match, we might want to clear it, but let the user decide.
+      } else {
+        const errorData = await res.json();
+        setToast({ type: 'error', message: errorData.error || 'Errore durante l\'eliminazione' });
+      }
+    } catch (e) {
+      setToast({ type: 'error', message: e.message });
+    }
+  }
+
   async function loadPendingMatch(pm) {
     setLeague(pm.league);
     setHomeTeam(pm.home_team);
@@ -337,15 +354,23 @@ function AnalysisContent() {
             </div>
             <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
               {pendingMatches.map(pm => (
-                <button
-                  key={pm.match_key}
-                  className="btn btn-secondary"
-                  style={{ whiteSpace: 'nowrap', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '8px 12px' }}
-                  onClick={() => loadPendingMatch(pm)}
-                >
-                  <strong style={{ fontSize: 13 }}>{pm.home_team} - {pm.away_team}</strong>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{pm.league} • {pm.odds_count} quote • Arb: {pm.referee || 'N/A'}</span>
-                </button>
+                <div key={pm.match_key} style={{ position: 'relative', display: 'flex' }}>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ whiteSpace: 'nowrap', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '8px 12px', paddingRight: '28px' }}
+                    onClick={() => loadPendingMatch(pm)}
+                  >
+                    <strong style={{ fontSize: 13 }}>{pm.home_team} - {pm.away_team}</strong>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{pm.league} • {pm.odds_count} quote • Arb: {pm.referee || 'N/A'}</span>
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deletePendingMatch(pm.match_key); }}
+                    style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-card)', border: 'none', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--red)', fontSize: 10, boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
+                    title="Elimina partita e quote in sospeso"
+                  >
+                    ✖
+                  </button>
+                </div>
               ))}
             </div>
           </div>
