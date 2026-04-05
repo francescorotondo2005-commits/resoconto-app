@@ -199,6 +199,31 @@ function AnalysisContent() {
     }
   }
 
+  async function swapTeams() {
+    if (!league || !homeTeam || !awayTeam) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/analysis/swap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ league, homeTeam, awayTeam }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      // Successfully swapped in backend. Update UI state internally.
+      setHomeTeam(data.newHome);
+      setAwayTeam(data.newAway);
+      setToast({ type: 'success', message: '✅ Squadre e Quote invertite con successo!' });
+      
+      // Auto-run analysis with new properties
+      runAnalysis(league, data.newHome, data.newAway, referee);
+    } catch (e) {
+      setToast({ type: 'error', message: e.message });
+      setLoading(false);
+    }
+  }
+
   function getEdge(probability, oddsValue) {
     if (!oddsValue || !probability) return null;
     return (probability * oddsValue) - 1;
@@ -358,9 +383,14 @@ function AnalysisContent() {
               </select>
             </div>
           </div>
-          <button className="btn btn-primary btn-lg" onClick={() => runAnalysis()} disabled={!league || !homeTeam || !awayTeam || loading} style={{ width: '100%', marginTop: 8 }}>
-            {loading ? <><span className="loading-spinner" /> Calcolo in corso...</> : '🔍 Genera Analisi'}
-          </button>
+          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <button className="btn btn-primary btn-lg" onClick={() => runAnalysis()} disabled={!league || !homeTeam || !awayTeam || loading} style={{ flex: 1 }}>
+              {loading ? <><span className="loading-spinner" /> Elaborazione...</> : '🔍 Genera Analisi'}
+            </button>
+            <button className="btn btn-secondary btn-lg" onClick={() => swapTeams()} disabled={!league || !homeTeam || !awayTeam || loading} title="Inverti Casa/Trasferta senza perdere le quote" style={{ padding: '0 16px' }}>
+              🔄 Scambia
+            </button>
+          </div>
         </div>
 
         {/* Results */}
