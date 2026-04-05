@@ -85,13 +85,15 @@ function AnalysisContent() {
     if (!confirm('Vuoi davvero eliminare questa partita dal menu Pending? Tutte le quote salvate per questa partita andranno perse.')) return;
     try {
       const res = await fetch(`/api/pending-matches?matchKey=${encodeURIComponent(matchKey)}`, { method: 'DELETE' });
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch(e) { throw new Error('Il server non ha risposto correttamente (possibile disconnessione o errore del server).'); }
+      
       if (res.ok) {
         setToast({ type: 'success', message: 'Partita eliminata dal pending.' });
         fetchPendingMatches();
-        // If we are currently viewing this match, we might want to clear it, but let the user decide.
       } else {
-        const errorData = await res.json();
-        setToast({ type: 'error', message: errorData.error || 'Errore durante l\'eliminazione' });
+        setToast({ type: 'error', message: data.error || 'Errore durante l\'eliminazione' });
       }
     } catch (e) {
       setToast({ type: 'error', message: e.message });
@@ -225,7 +227,14 @@ function AnalysisContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ league, homeTeam, awayTeam }),
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try { 
+        data = JSON.parse(text); 
+      } catch(e) { 
+        throw new Error('Endpoint non trovato o server in crash. Riavvia Next.js (Ctrl+C e npm run dev)'); 
+      }
+      
       if (data.error) throw new Error(data.error);
 
       // Successfully swapped in backend. Update UI state internally.
