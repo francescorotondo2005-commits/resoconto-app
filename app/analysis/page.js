@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 
@@ -39,6 +39,9 @@ function AnalysisContent() {
   const [odds, setOdds] = useState({});
   const [activeEditOdds, setActiveEditOdds] = useState({});
   const [savingOdds, setSavingOdds] = useState(false);
+
+  // Refs for fast keyboard navigation
+  const oddsInputRefs = useRef({});
 
   // Modals and Toasts
   const [betModal, setBetModal] = useState(null);
@@ -163,6 +166,56 @@ function AnalysisContent() {
       ...prev,
       [marketName]: { ...prev[marketName], [bookmaker]: value ? parseFloat(value) : '' }
     }));
+  }
+
+  // Fast keyboard navigation for odds inputs
+  function handleOddsKeyDown(e, marketName, bookmaker) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.target.blur();
+      // Move to next row in same column
+      const marketNames = displayMarkets.filter(m => !m.isDiscarded).map(m => m.name);
+      const currentIdx = marketNames.indexOf(marketName);
+      const nextIdx = currentIdx + 1;
+      if (nextIdx < marketNames.length) {
+        const nextKey = `${marketNames[nextIdx]}_${bookmaker}`;
+        setTimeout(() => {
+          oddsInputRefs.current[nextKey]?.focus();
+          oddsInputRefs.current[nextKey]?.select();
+        }, 50);
+      } else if (bookmaker === 'sportium' && marketNames.length > 0) {
+        // End of Sportium column → jump to first Sportbet
+        const firstKey = `${marketNames[0]}_sportbet`;
+        setTimeout(() => {
+          oddsInputRefs.current[firstKey]?.focus();
+          oddsInputRefs.current[firstKey]?.select();
+        }, 50);
+      }
+    } else if (e.key === '0' && e.target.value === '') {
+      // Quick skip on empty field → move to next
+      e.preventDefault();
+      const marketNames = displayMarkets.filter(m => !m.isDiscarded).map(m => m.name);
+      const currentIdx = marketNames.indexOf(marketName);
+      const nextIdx = currentIdx + 1;
+      if (nextIdx < marketNames.length) {
+        const nextKey = `${marketNames[nextIdx]}_${bookmaker}`;
+        setTimeout(() => {
+          oddsInputRefs.current[nextKey]?.focus();
+          oddsInputRefs.current[nextKey]?.select();
+        }, 50);
+      } else if (bookmaker === 'sportium' && marketNames.length > 0) {
+        const firstKey = `${marketNames[0]}_sportbet`;
+        setTimeout(() => {
+          oddsInputRefs.current[firstKey]?.focus();
+          oddsInputRefs.current[firstKey]?.select();
+        }, 50);
+      }
+    }
+  }
+
+  // Register ref for an odds input
+  function setOddsRef(marketName, bookmaker, el) {
+    oddsInputRefs.current[`${marketName}_${bookmaker}`] = el;
   }
 
   // Handle blurring odds (commits to odds state, triggers re-sort, saves to DB, and flashes row)
@@ -554,10 +607,11 @@ function AnalysisContent() {
                               step="0.01"
                               min="1"
                               placeholder="—"
+                              ref={el => setOddsRef(m.name, 'sportium', el)}
                               value={activeEditOdds[m.name]?.sportium !== undefined ? activeEditOdds[m.name]?.sportium : ''}
                               onChange={e => handleOddsChange(m.name, 'sportium', e.target.value)}
                               onBlur={e => handleOddsBlur(m.name, 'sportium', e.target.value)}
-                              onKeyDown={e => e.key === 'Enter' && e.target.blur()}
+                              onKeyDown={e => handleOddsKeyDown(e, m.name, 'sportium')}
                             />
                           )}
                         </td>
@@ -569,10 +623,11 @@ function AnalysisContent() {
                               step="0.01"
                               min="1"
                               placeholder="—"
+                              ref={el => setOddsRef(m.name, 'sportbet', el)}
                               value={activeEditOdds[m.name]?.sportbet !== undefined ? activeEditOdds[m.name]?.sportbet : ''}
                               onChange={e => handleOddsChange(m.name, 'sportbet', e.target.value)}
                               onBlur={e => handleOddsBlur(m.name, 'sportbet', e.target.value)}
-                              onKeyDown={e => e.key === 'Enter' && e.target.blur()}
+                              onKeyDown={e => handleOddsKeyDown(e, m.name, 'sportbet')}
                             />
                           )}
                         </td>
