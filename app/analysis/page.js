@@ -191,7 +191,7 @@ function AnalysisContent() {
           oddsInputRefs.current[firstKey]?.select();
         }, 50);
       }
-    } else if (e.key === '0' && e.target.value === '') {
+    } else if (e.key === ' ') {
       // Quick skip on empty field → move to next
       e.preventDefault();
       const marketNames = displayMarkets.filter(m => !m.isDiscarded).map(m => m.name);
