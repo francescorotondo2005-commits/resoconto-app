@@ -23,6 +23,7 @@ export async function POST(request) {
 
     const minProb = parseFloat(await getSetting('min_probability') || '0.65');
     const minEdge = parseFloat(await getSetting('min_edge') || '0.20');
+    const maxProb = parseFloat(await getSetting('max_probability') || '0.85');
 
     // Calcola EV e SD per ogni statistica
     const stats = ['gol', 'tiri', 'tip', 'falli', 'corner', 'cartellini', 'parate'];
@@ -154,7 +155,7 @@ export async function POST(request) {
 
       const fairOdds = probability > 0 ? 1 / probability : 999;
       const minOdds = probability >= minProb ? (1 + minEdge) / probability : null;
-      const isDiscarded = probability < minProb;
+      const isDiscarded = probability < minProb || probability >= maxProb;
 
       results.push({
         name: market.name,
@@ -176,7 +177,7 @@ export async function POST(request) {
       evsd,
       refereeRating,
       markets: results,
-      settings: { minProb, minEdge },
+      settings: { minProb, minEdge, maxProb },
       matchInfo: { league, homeTeam, awayTeam, referee },
     });
 

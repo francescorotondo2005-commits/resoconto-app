@@ -59,12 +59,20 @@ export default function SettingsPage() {
             <div className="card">
               <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20 }}>📊 Parametri Analisi</h3>
               <div className="input-group">
-                <label>Probabilità Minima (%)</label>
-                <input type="number" min="0" max="100" step="1"
-                  value={Math.round((settings.min_probability || 0.65) * 100)}
-                  onChange={e => handleChange('min_probability', (parseFloat(e.target.value) / 100).toString())} />
+                <label>Range Probabilità (%)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input type="number" min="0" max="100" step="1"
+                    style={{ flex: 1 }}
+                    value={Math.round((settings.min_probability || 0.65) * 100)}
+                    onChange={e => handleChange('min_probability', (parseFloat(e.target.value) / 100).toString())} />
+                  <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-muted)' }}>—</span>
+                  <input type="number" min="0" max="100" step="1"
+                    style={{ flex: 1 }}
+                    value={Math.round((settings.max_probability || 0.85) * 100)}
+                    onChange={e => handleChange('max_probability', (parseFloat(e.target.value) / 100).toString())} />
+                </div>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                  Le scommesse con probabilità inferiore saranno scartate
+                  Mostra solo le scommesse nel range di probabilità indicato
                 </span>
               </div>
               <div className="input-group">
@@ -79,6 +87,7 @@ export default function SettingsPage() {
               <button className="btn btn-primary" onClick={() => saveSettings({
                 min_probability: settings.min_probability,
                 min_edge: settings.min_edge,
+                max_probability: settings.max_probability,
               })}>Salva Parametri</button>
             </div>
 
