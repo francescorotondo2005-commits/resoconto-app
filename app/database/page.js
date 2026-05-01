@@ -95,7 +95,7 @@ export default function DatabasePage() {
       });
 
       if (res.ok) {
-        setToast({ type: 'success', message: `✅ ${form.home_team} vs ${form.away_team} ${editMatchId ? 'modificata' : 'salvata'}!` });
+        setToast({ type: 'success', message: `âœ… ${form.home_team} vs ${form.away_team} ${editMatchId ? 'modificata' : 'salvata'}!` });
         setForm({ ...EMPTY_MATCH, league: form.league, date: form.date });
         setEditMatchId(null);
         if (editMatchId) setViewMode('view');
@@ -121,7 +121,7 @@ export default function DatabasePage() {
       const data = await res.json();
       setImportResult(data);
       if (data.success) {
-        setToast({ type: 'success', message: '✅ Import completato!' });
+        setToast({ type: 'success', message: 'âœ… Import completato!' });
         loadMatches();
       }
     } catch (e) {
@@ -131,7 +131,7 @@ export default function DatabasePage() {
   }
 
   async function handleDelete(id) {
-    if (!confirm('Eliminare questa partita? Verrà cancellato anche il relativo backtest.')) return;
+    if (!confirm('Eliminare questa partita? VerrÃ  cancellato anche il relativo backtest.')) return;
     try {
       await fetch('/api/matches', {
         method: 'DELETE',
@@ -178,16 +178,28 @@ export default function DatabasePage() {
        const data = await res.json();
        const backtests = data.backtestBets || [];
        if (backtests.length === 0) throw new Error('Nessun backtest trovato da esportare');
-       
-       const header = Object.keys(backtests[0]).join(',');
-       const rows = backtests.map(b => Object.values(b).map(v => `"${v !== null ? String(v).replace(/"/g, '""') : ''}"`).join(','));
+       const columns = [
+         ['match_key','Chiave Match'],['match_date','Data Match'],['bet_name','Scommessa'],
+         ['bet_category','Categoria'],['probability','Probabilità'],['sportium','Sportium'],
+         ['sportbet','Sportbet'],['best_edge','Edge MAX'],['outcome','Esito'],
+         ['hist_score','Storico %'],['home_hist_pct','Storico Casa'],['home_hist_sample','Campione Casa'],
+         ['away_hist_pct','Storico Ospite'],['away_hist_sample','Campione Ospite'],
+         ['ref_hist_pct','Storico Arbitro'],['ref_hist_sample','Campione Arbitro'],
+         ['form_home_pct','Forma Casa (ult.5)'],['form_home_n','N Forma Casa'],
+         ['form_away_pct','Forma Ospite (ult.5)'],['form_away_n','N Forma Ospite'],
+         ['form_ref_pct','Forma Arbitro (ult.5)'],['form_ref_n','N Forma Arbitro'],
+       ];
+       const header = columns.map(([,label]) => label).join(',');
+       const rows = backtests.map(b => columns.map(([key]) => {
+         const v = b[key];
+         return v === null || v === undefined ? '""' : '"' + String(v).replace(/"/g,'""') + '"';
+       }).join(','));
        const csv = [header, ...rows].join('\n');
-       
        const blob = new Blob([csv], { type: 'text/csv' });
        const url = URL.createObjectURL(blob);
        const a = document.createElement('a');
        a.href = url;
-       a.download = `resoconto_backtest_export.csv`;
+       a.download = 'resoconto_backtest_export.csv';
        a.click();
        URL.revokeObjectURL(url);
     } catch (e) { setToast({ type: 'error', message: e.message }); }
@@ -205,15 +217,15 @@ export default function DatabasePage() {
       <Sidebar />
       <main className="main-content">
         <div className="page-header">
-          <h1 className="page-title">📊 Database</h1>
+          <h1 className="page-title">ðŸ“Š Database</h1>
           <p className="page-subtitle">Gestisci i dati delle partite</p>
         </div>
 
         {/* Tab Toggle */}
         <div className="toggle-group" style={{ marginBottom: 24, width: 'fit-content' }}>
-          <button className={`toggle-btn ${viewMode === 'add' ? 'active' : ''}`} onClick={() => setViewMode('add')}>➕ Aggiungi Partita</button>
-          <button className={`toggle-btn ${viewMode === 'view' ? 'active' : ''}`} onClick={() => setViewMode('view')}>📋 Visualizza DB</button>
-          <button className={`toggle-btn ${viewMode === 'import' ? 'active' : ''}`} onClick={() => setViewMode('import')}>📥 Import Excel</button>
+          <button className={`toggle-btn ${viewMode === 'add' ? 'active' : ''}`} onClick={() => setViewMode('add')}>âž• Aggiungi Partita</button>
+          <button className={`toggle-btn ${viewMode === 'view' ? 'active' : ''}`} onClick={() => setViewMode('view')}>ðŸ“‹ Visualizza DB</button>
+          <button className={`toggle-btn ${viewMode === 'import' ? 'active' : ''}`} onClick={() => setViewMode('import')}>ðŸ“¥ Import Excel</button>
         </div>
 
         {/* Add Match Form */}
@@ -221,7 +233,7 @@ export default function DatabasePage() {
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h3 style={{ fontSize: 18, fontWeight: 700 }}>
-                {editMatchId ? '✏️ Modifica Risultato Partita' : 'Inserimento Rapido'}
+                {editMatchId ? 'âœï¸ Modifica Risultato Partita' : 'Inserimento Rapido'}
               </h3>
               {editMatchId && (
                 <button className="btn btn-secondary btn-sm" onClick={handleCancelEdit}>
@@ -298,7 +310,7 @@ export default function DatabasePage() {
 
               <div className="form-actions">
                 <button type="submit" className="btn btn-success btn-lg" style={{ flex: 1 }}>
-                  {editMatchId ? '💾 Conferma Modifica' : '💾 Salva + Prossima'}
+                  {editMatchId ? 'ðŸ’¾ Conferma Modifica' : 'ðŸ’¾ Salva + Prossima'}
                 </button>
               </div>
             </form>
@@ -318,8 +330,8 @@ export default function DatabasePage() {
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn btn-secondary btn-sm" onClick={handleExportDB} disabled={loading}>📥 Export DB</button>
-                <button className="btn btn-primary btn-sm" onClick={handleExportBacktest} disabled={loading}>📥 Export Backtest</button>
+                <button className="btn btn-secondary btn-sm" onClick={handleExportDB} disabled={loading}>ðŸ“¥ Export DB</button>
+                <button className="btn btn-primary btn-sm" onClick={handleExportBacktest} disabled={loading}>ðŸ“¥ Export Backtest</button>
               </div>
             </div>
             <div className="table-container" style={{ maxHeight: '70vh' }}>
@@ -344,10 +356,10 @@ export default function DatabasePage() {
                       <td>{m.home_corners}-{m.away_corners}</td>
                       <td>{m.home_yellows}-{m.away_yellows}</td>
                       <td>{m.home_reds}-{m.away_reds}</td>
-                      <td style={{ fontSize: 12 }}>{m.referee || '—'}</td>
+                      <td style={{ fontSize: 12 }}>{m.referee || 'â€”'}</td>
                       <td style={{ display: 'flex', gap: 6 }}>
-                        <button className="btn btn-secondary btn-sm" onClick={() => handleEdit(m)}>✏️</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(m.id)}>✕</button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => handleEdit(m)}>âœï¸</button>
+                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(m.id)}>âœ•</button>
                       </td>
                     </tr>
                   ))}
@@ -360,7 +372,7 @@ export default function DatabasePage() {
         {/* Import */}
         {viewMode === 'import' && (
           <div className="card">
-            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>📥 Import da Resoconto.xlsx</h3>
+            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>ðŸ“¥ Import da Resoconto.xlsx</h3>
             <p style={{ color: 'var(--text-secondary)', marginBottom: 20 }}>
               Carica il tuo file Resoconto.xlsx per importare tutti i dati dei 5 campionati.
               I dati duplicati verranno ignorati automaticamente.

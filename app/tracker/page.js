@@ -14,13 +14,21 @@ export default function TrackerPage() {
   // Backtest
   const [backtestBets, setBacktestBets] = useState([]);
   const [backtestStats, setBacktestStats] = useState({});
-  const [minBacktestEdge, setMinBacktestEdge] = useState(0.15); // Default 15%
-  const [minBacktestProb, setMinBacktestProb] = useState(0.65); // Default 65%
+  const [minBacktestEdge, setMinBacktestEdge] = useState(0.15);
+  const [minBacktestProb, setMinBacktestProb] = useState(0.65);
+  const [minBacktestHist, setMinBacktestHist] = useState(0);   // 0 = nessun filtro
+  const [backtestLoading, setBacktestLoading] = useState(false);
+  const [backfillLoading, setBackfillLoading] = useState(false);
+  const [backfillResult, setBackfillResult] = useState(null);
+
+  // Popup storico/forma backtest
+  const [histPopup, setHistPopup] = useState(null);
 
   const [toast, setToast] = useState(null);
   
   // Edit Bet Modal
   const [editModal, setEditModal] = useState(null);
+
 
   useEffect(() => { 
     loadBets(); 
@@ -39,12 +47,38 @@ export default function TrackerPage() {
   }
 
   async function loadBacktest() {
+    setBacktestLoading(true);
     try {
       const res = await fetch(`/api/backtest`);
       const data = await res.json();
       setBacktestBets(data.backtestBets || []);
       setBacktestStats(data.stats || {});
     } catch (e) { console.error(e); }
+    setBacktestLoading(false);
+  }
+
+  async function runBackfill() {
+    if (!confirm('Calcola lo storico per tutte le scommesse del backtest senza dato? Potrebbe richiedere qualche secondo.')) return;
+    setBackfillLoading(true);
+    setBackfillResult(null);
+    try {
+      const res = await fetch('/api/backtest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'backfill' }),
+      });
+      const data = await res.json();
+      setBackfillResult(data);
+      if (data.success) {
+        setToast({ type: 'success', message: `✅ Storico calcolato per ${data.updated} scommesse!` });
+        loadBacktest(); // Ricarica con i nuovi dati
+      } else {
+        setToast({ type: 'error', message: data.error || 'Errore backfill' });
+      }
+    } catch (e) {
+      setToast({ type: 'error', message: e.message });
+    }
+    setBackfillLoading(false);
   }
 
   async function deleteBet(id) {
@@ -119,7 +153,12 @@ export default function TrackerPage() {
     bankrollHistory.push(runningTotal);
   }
 
-  const filteredBacktestBets = backtestBets.filter(b => b.best_edge >= minBacktestEdge && b.probability >= minBacktestProb);
+  const filteredBacktestBets = backtestBets.filter(b => {
+    if (b.best_edge < minBacktestEdge) return false;
+    if (b.probability < minBacktestProb) return false;
+    if (minBacktestHist > 0 && (b.hist_score === null || b.hist_score === undefined || b.hist_score < minBacktestHist)) return false;
+    return true;
+  });
   
   const backtestHistory = [];
   let btTotal = 0;
@@ -278,21 +317,35 @@ export default function TrackerPage() {
         {activeTab === 'backtest' && (
           <>
             <div className="card" style={{ marginBottom: 20, background: 'rgba(108, 92, 231, 0.05)', borderColor: 'rgba(108, 92, 231, 0.2)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0, flex: 1 }}>
-                  <strong>Cosa vedo qui?</strong> Il sistema registra *ogni scommessa* calcolata in Analisi prima che sia refertata.
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0, flex: 1, minWidth: 200 }}>
+                  <strong>Cosa vedo qui?</strong> Il sistema registra ogni scommessa calcolata in Analisi prima che sia refertata.
                 </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-secondary)', padding: '6px 16px', borderRadius: 'var(--radius-lg)' }}>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-primary)', textTransform: 'uppercase' }}>Edge Minimo:</label>
-                    <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 60, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(minBacktestEdge * 100)} onChange={e => setMinBacktestEdge(parseFloat(e.target.value) / 100 || 0)} />
+                    <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-primary)', textTransform: 'uppercase' }}>Edge Min:</label>
+                    <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 55, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(minBacktestEdge * 100)} onChange={e => setMinBacktestEdge(parseFloat(e.target.value) / 100 || 0)} />
                     <span style={{ fontSize: 14, fontWeight: 600 }}>%</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-secondary)', padding: '6px 16px', borderRadius: 'var(--radius-lg)' }}>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-primary)', textTransform: 'uppercase' }}>Prob Minima:</label>
-                    <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 60, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(minBacktestProb * 100)} onChange={e => setMinBacktestProb(parseFloat(e.target.value) / 100 || 0)} />
+                    <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-primary)', textTransform: 'uppercase' }}>Prob Min:</label>
+                    <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 55, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(minBacktestProb * 100)} onChange={e => setMinBacktestProb(parseFloat(e.target.value) / 100 || 0)} />
                     <span style={{ fontSize: 14, fontWeight: 600 }}>%</span>
                   </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(16,185,129,0.08)', padding: '6px 16px', borderRadius: 'var(--radius-lg)', border: '1px solid rgba(16,185,129,0.2)' }}>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--green)', textTransform: 'uppercase' }}>Hist% Min:</label>
+                    <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 55, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(minBacktestHist * 100)} onChange={e => setMinBacktestHist(parseFloat(e.target.value) / 100 || 0)} />
+                    <span style={{ fontSize: 14, fontWeight: 600 }}>%</span>
+                  </div>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={runBackfill}
+                    disabled={backfillLoading}
+                    title="Calcola lo storico per le scommesse che non ce l'hanno ancora"
+                    style={{ fontSize: 11, opacity: backfillLoading ? 0.6 : 1 }}
+                  >
+                    {backfillLoading ? '⏳ Calcolo...' : '🔄 Calcola Storico'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -347,20 +400,34 @@ export default function TrackerPage() {
               </div>
             )}
 
+            {backtestLoading && (
+              <div className="loading-container" style={{ padding: 32 }}>
+                <span className="loading-spinner" /> Calcolo storico in corso...
+              </div>
+            )}
+
             <div className="table-container" style={{ maxHeight: '60vh' }}>
               <table>
                 <thead>
                   <tr>
-                    <th>Data Match</th><th>Chiave Match</th><th>Scommessa</th><th>Cat.</th>
+                    <th>Data Match</th><th>Partita</th><th>Scommessa</th><th>Cat.</th>
                     <th>Prob.</th><th>Sportium</th><th>Sportbet</th><th>Edge MAX</th>
-                    <th>Esito Reale</th><th>Azione</th>
+                    <th style={{ color: 'var(--green)' }}>Hist%</th>
+                    <th>Esito</th><th>Azione</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredBacktestBets.map(b => (
+                  {filteredBacktestBets.map(b => {
+                    const [, homeTeam, awayTeam] = b.match_key.split('|');
+                    const histScore = b.hist_score;
+                    const histColor = histScore === null || histScore === undefined ? 'var(--text-muted)'
+                      : histScore >= 0.65 ? 'var(--green)'
+                      : histScore >= 0.50 ? 'var(--accent-secondary)'
+                      : 'var(--red)';
+                    return (
                     <tr key={b.id}>
                       <td style={{ fontSize: 12 }}>{b.match_date}</td>
-                      <td style={{ fontWeight: 600, fontSize: 12 }}>{b.match_key.replace(/\|/g, ' - ')}</td>
+                      <td style={{ fontWeight: 600, fontSize: 12 }}>{homeTeam} - {awayTeam}</td>
                       <td style={{ fontSize: 12, fontWeight: 600 }}>{b.bet_name}</td>
                       <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>{b.bet_category}</td>
                       <td>{(b.probability * 100).toFixed(1)}%</td>
@@ -368,6 +435,24 @@ export default function TrackerPage() {
                       <td>{b.sportbet || '—'}</td>
                       <td className={`edge-indicator ${b.best_edge >= 0 ? 'positive' : 'negative'}`}>
                         {(b.best_edge * 100).toFixed(1)}%
+                      </td>
+                      <td>
+                        {histScore !== null && histScore !== undefined ? (
+                          <button
+                            onClick={() => setHistPopup(b)}
+                            style={{
+                              background: 'none', border: 'none', cursor: 'pointer',
+                              fontWeight: 700, fontSize: 13, color: histColor,
+                              padding: '2px 6px', borderRadius: 4,
+                              outline: '1px solid currentColor',
+                            }}
+                            title="Clicca per dettaglio storico e forma"
+                          >
+                            {Math.round(histScore * 100)}%
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</span>
+                        )}
                       </td>
                       <td>
                         {b.outcome === 'WIN' ? (
@@ -386,7 +471,8 @@ export default function TrackerPage() {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -453,7 +539,110 @@ export default function TrackerPage() {
           </div>
         )}
 
+
+        {/* Modal Storico + Forma Backtest */}
+        {histPopup && (() => {
+          const b = histPopup;
+          const [, homeTeam, awayTeam] = b.match_key.split('|');
+          const fmtPct = (v) => v !== null && v !== undefined ? `${Math.round(v * 100)}%` : '—';
+          const histColor = (v) => v === null || v === undefined ? 'var(--text-muted)'
+            : v >= 0.65 ? 'var(--green)' : v >= 0.50 ? 'var(--accent-secondary)' : 'var(--red)';
+          return (
+            <div className="modal-overlay" onClick={() => setHistPopup(null)}>
+              <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+                <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: 14, marginBottom: 18 }}>
+                  <div style={{ fontSize: 12, color: 'var(--accent-primary)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>
+                    Storico & Forma — Backtest
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>{b.bet_name}</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+                    {homeTeam} - {awayTeam} · {b.match_date}
+                  </div>
+                </div>
+
+                {/* Hist Score globale */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, padding: '12px 16px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', flex: 1 }}>Punteggio Storico Aggregato</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: histColor(b.hist_score) }}>
+                    {fmtPct(b.hist_score)}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    Esito: <strong style={{ color: b.outcome === 'WIN' ? 'var(--green)' : b.outcome === 'LOSS' ? 'var(--red)' : 'var(--text-muted)' }}>{b.outcome}</strong>
+                  </div>
+                </div>
+
+                {/* Storico Stagionale */}
+                <div style={{ marginBottom: 18 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    📊 Storico Stagionale (alla data della bet)
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                    <div style={{ padding: '10px 14px', background: 'var(--bg-card-hover)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>🏠 {homeTeam} (Casa)</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: histColor(b.home_hist_pct) }}>{fmtPct(b.home_hist_pct)}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{b.home_hist_sample ?? 0} partite</div>
+                    </div>
+                    <div style={{ padding: '10px 14px', background: 'var(--bg-card-hover)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>✈️ {awayTeam} (Trasferta)</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: histColor(b.away_hist_pct) }}>{fmtPct(b.away_hist_pct)}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{b.away_hist_sample ?? 0} partite</div>
+                    </div>
+                    {b.ref_hist_pct !== null && b.ref_hist_pct !== undefined ? (
+                      <div style={{ padding: '10px 14px', background: 'var(--bg-card-hover)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>🟡 Arbitro</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: histColor(b.ref_hist_pct) }}>{fmtPct(b.ref_hist_pct)}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{b.ref_hist_sample ?? 0} partite</div>
+                      </div>
+                    ) : (
+                      <div style={{ padding: '10px 14px', background: 'var(--bg-card-hover)', borderRadius: 8, border: '1px solid var(--border)', opacity: 0.4 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>🟡 Arbitro</div>
+                        <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>N/A</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Stato di Forma (ultime 5) */}
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    🔥 Stato di Forma (Ultime {b.form_home_n ?? 5} Partite)
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                    <div style={{ padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>🏠 {homeTeam}</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: histColor(b.form_home_pct) }}>{fmtPct(b.form_home_pct)}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Ultime {b.form_home_n ?? '—'} in casa</div>
+                    </div>
+                    <div style={{ padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>✈️ {awayTeam}</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: histColor(b.form_away_pct) }}>{fmtPct(b.form_away_pct)}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Ultime {b.form_away_n ?? '—'} in trasferta</div>
+                    </div>
+                    {b.form_ref_pct !== null && b.form_ref_pct !== undefined ? (
+                      <div style={{ padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>🟡 Arbitro</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: histColor(b.form_ref_pct) }}>{fmtPct(b.form_ref_pct)}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Ultime {b.form_ref_n ?? '—'} dir.</div>
+                      </div>
+                    ) : (
+                      <div style={{ padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border)', opacity: 0.4 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>🟡 Arbitro</div>
+                        <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>N/A</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="form-actions" style={{ marginTop: 20, justifyContent: 'flex-end' }}>
+                  <button className="btn btn-secondary" onClick={() => setHistPopup(null)}>Chiudi</button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {toast && <div className={`toast toast-${toast.type}`} onClick={() => setToast(null)}>{toast.message}</div>}
+
       </main>
     </div>
   );
