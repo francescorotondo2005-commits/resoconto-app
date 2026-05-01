@@ -223,7 +223,10 @@ export async function GET(request) {
             edge_sportium: sportiumEdge > -900 ? Math.round(sportiumEdge * 10000) / 10000 : null,
             odds_sportbet: mktRow.sportbet || null,
             edge_sportbet: sportbetEdge > -900 ? Math.round(sportbetEdge * 10000) / 10000 : null,
-            historyMessage,
+            histScore: hist?.histScore ?? null,
+            formScore: form && form.homeFormPct !== null && form.awayFormPct !== null ? (form.homeFormPct + form.awayFormPct) / 2 : null,
+            hist,
+            form,
             refereeRating: refereeRating,
             inGioco,
           });
