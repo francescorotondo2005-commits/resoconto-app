@@ -88,6 +88,18 @@ export async function GET(request) {
           referee = pmRes.rows[0]?.referee || null;
         } catch { /* ignora */ }
 
+        // Se non trovato in pending, cerca nella tabella matches (partita già conclusa)
+        if (!referee) {
+          const matchInDb = matches.find(m => m.home_team === bet._homeTeam && m.away_team === bet._awayTeam && m.date >= bet.match_date && m.date <= bet.match_date + 'z'); // Approssimazione
+          if (!matchInDb) {
+            // Cerchiamo solo per squadre, visto che si gioca una volta in casa a stagione
+            const matchByTeam = matches.find(m => m.home_team === bet._homeTeam && m.away_team === bet._awayTeam);
+            if (matchByTeam) referee = matchByTeam.referee;
+          } else {
+            referee = matchInDb.referee;
+          }
+        }
+
         const enriched = enrichBetWithHistory(bet, matchesBefore, referee);
         const { _homeTeam, _awayTeam, ...clean } = enriched;
         backtestBets.push(clean);
@@ -155,9 +167,9 @@ export async function POST(request) {
 
     const db = await getDb();
 
-    // Prendi solo le bet senza hist_score
+    // Prendi tutte le bet (rimuovo WHERE hist_score IS NULL per forzare il ricalcolo con gli arbitri giusti)
     const res = await db.execute({
-      sql: 'SELECT * FROM backtest_bets WHERE hist_score IS NULL ORDER BY match_date ASC',
+      sql: 'SELECT * FROM backtest_bets ORDER BY match_date ASC',
       args: []
     });
     const bets = res.rows;
@@ -192,7 +204,12 @@ export async function POST(request) {
 
       for (const bet of leagueBets) {
         const matchesBefore = matches.filter(m => m.date < bet.match_date);
-        const referee = refereeMap[bet.match_key] || null;
+        
+        let referee = refereeMap[bet.match_key] || null;
+        if (!referee) {
+          const m = matches.find(m => m.home_team === bet._homeTeam && m.away_team === bet._awayTeam);
+          if (m) referee = m.referee;
+        }
 
         const hist = calcHistorySummary(bet._homeTeam, bet._awayTeam, referee, bet.bet_name, matchesBefore);
         const form = calcFormSummary(bet._homeTeam, bet._awayTeam, referee, bet.bet_name, matchesBefore, 5);

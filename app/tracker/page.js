@@ -17,6 +17,7 @@ export default function TrackerPage() {
   const [minBacktestEdge, setMinBacktestEdge] = useState(0.15);
   const [minBacktestProb, setMinBacktestProb] = useState(0.65);
   const [minBacktestHist, setMinBacktestHist] = useState(0);   // 0 = nessun filtro
+  const [minBacktestForm, setMinBacktestForm] = useState(0);   // 0 = nessun filtro
   const [backtestLoading, setBacktestLoading] = useState(false);
   const [backfillLoading, setBackfillLoading] = useState(false);
   const [backfillResult, setBackfillResult] = useState(null);
@@ -157,6 +158,11 @@ export default function TrackerPage() {
     if (b.best_edge < minBacktestEdge) return false;
     if (b.probability < minBacktestProb) return false;
     if (minBacktestHist > 0 && (b.hist_score === null || b.hist_score === undefined || b.hist_score < minBacktestHist)) return false;
+    if (minBacktestForm > 0) {
+      if (b.form_home_pct === null || b.form_away_pct === null) return false;
+      const formScore = (b.form_home_pct + b.form_away_pct) / 2;
+      if (formScore < minBacktestForm) return false;
+    }
     return true;
   });
   
@@ -337,6 +343,11 @@ export default function TrackerPage() {
                     <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 55, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(minBacktestHist * 100)} onChange={e => setMinBacktestHist(parseFloat(e.target.value) / 100 || 0)} />
                     <span style={{ fontSize: 14, fontWeight: 600 }}>%</span>
                   </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(245,158,11,0.08)', padding: '6px 16px', borderRadius: 'var(--radius-lg)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--orange, #f59e0b)', textTransform: 'uppercase' }}>Forma% Min:</label>
+                    <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 55, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(minBacktestForm * 100)} onChange={e => setMinBacktestForm(parseFloat(e.target.value) / 100 || 0)} />
+                    <span style={{ fontSize: 14, fontWeight: 600 }}>%</span>
+                  </div>
                   <button
                     className="btn btn-secondary btn-sm"
                     onClick={runBackfill}
@@ -413,6 +424,7 @@ export default function TrackerPage() {
                     <th>Data Match</th><th>Partita</th><th>Scommessa</th><th>Cat.</th>
                     <th>Prob.</th><th>Sportium</th><th>Sportbet</th><th>Edge MAX</th>
                     <th style={{ color: 'var(--green)' }}>Hist%</th>
+                    <th style={{ color: 'var(--orange, #f59e0b)' }}>Form%</th>
                     <th>Esito</th><th>Azione</th>
                   </tr>
                 </thead>
@@ -424,6 +436,16 @@ export default function TrackerPage() {
                       : histScore >= 0.65 ? 'var(--green)'
                       : histScore >= 0.50 ? 'var(--accent-secondary)'
                       : 'var(--red)';
+                      
+                    let formScore = null;
+                    if (b.form_home_pct !== null && b.form_away_pct !== null) {
+                      formScore = (b.form_home_pct + b.form_away_pct) / 2;
+                    }
+                    const formColor = formScore === null ? 'var(--text-muted)'
+                      : formScore >= 0.65 ? 'var(--green)'
+                      : formScore >= 0.50 ? 'var(--accent-secondary)'
+                      : 'var(--red)';
+
                     return (
                     <tr key={b.id}>
                       <td style={{ fontSize: 12 }}>{b.match_date}</td>
@@ -450,6 +472,15 @@ export default function TrackerPage() {
                           >
                             {Math.round(histScore * 100)}%
                           </button>
+                        ) : (
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</span>
+                        )}
+                      </td>
+                      <td>
+                        {formScore !== null ? (
+                          <span style={{ fontWeight: 700, fontSize: 13, color: formColor }}>
+                            {Math.round(formScore * 100)}%
+                          </span>
                         ) : (
                           <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</span>
                         )}
