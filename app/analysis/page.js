@@ -38,7 +38,9 @@ function AnalysisContent() {
   // Odds state
   const [odds, setOdds] = useState({});
   const [activeEditOdds, setActiveEditOdds] = useState({});
+  const [scrapedMarkets, setScrapedMarkets] = useState(new Set()); // traccia quali quote vengono dallo scraper
   const [savingOdds, setSavingOdds] = useState(false);
+  const [isScrapingLoading, setIsScrapingLoading] = useState(false);
 
   // Refs for fast keyboard navigation
   const oddsInputRefs = useRef({});
@@ -111,6 +113,20 @@ function AnalysisContent() {
     runAnalysis(pm.league, pm.home_team, pm.away_team, pm.referee || '');
   }
 
+  async function toggleInGioco(matchKey, currentValue) {
+    try {
+      await fetch('/api/pending-matches', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matchKey, in_gioco: !currentValue }),
+      });
+      setToast({ type: 'success', message: !currentValue ? '🔴 Partita segnata come In Gioco' : '✅ Partita riattivata' });
+      fetchPendingMatches();
+    } catch (e) {
+      setToast({ type: 'error', message: e.message });
+    }
+  }
+
   async function runAnalysis(l = league, h = homeTeam, a = awayTeam, r = referee) {
     if (!l || !h || !a) return;
     setLoading(true);
@@ -158,6 +174,82 @@ function AnalysisContent() {
       setToast({ type: 'error', message: e.message });
     }
     setLoading(false);
+  }
+
+  /**
+   * runScraping — chiama /api/scrape e popola le celle quote con i dati estratti.
+   * Le quote vengono anche salvate nel DB dall'API, poi si ricaricano dall'API analysis/odds.
+   */
+  async function runScraping() {
+    if (!league || !homeTeam || !awayTeam) {
+      setToast({ type: 'error', message: 'Seleziona prima campionato e squadre e genera l\'analisi.' });
+      return;
+    }
+    if (!results) {
+      setToast({ type: 'error', message: 'Genera prima l\'analisi statistica prima di fare lo scraping.' });
+      return;
+    }
+
+    setIsScrapingLoading(true);
+    try {
+      const res = await fetch('/api/scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          league,
+          homeTeam,
+          awayTeam,
+          markets: results?.markets || [],
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || `Errore HTTP ${res.status}`);
+      }
+
+      // Applica le quote scraped alla UI
+      if (data.odds && Object.keys(data.odds).length > 0) {
+        const newScrapedSet = new Set();
+        setOdds(prev => {
+          const updated = { ...prev };
+          for (const [market, books] of Object.entries(data.odds)) {
+            updated[market] = { ...(updated[market] || {}), ...books };
+            newScrapedSet.add(market);
+          }
+          return updated;
+        });
+        setActiveEditOdds(prev => {
+          const updated = { ...prev };
+          for (const [market, books] of Object.entries(data.odds)) {
+            updated[market] = { ...(updated[market] || {}), ...books };
+          }
+          return updated;
+        });
+        setScrapedMarkets(newScrapedSet);
+
+        const nMarkets = Object.keys(data.odds).length;
+        const nVb = data.valueBets?.length || 0;
+        const errMsg = data.errors?.length > 0 ? ` (${data.errors.length} avvisi)` : '';
+        setToast({
+          type: nMarkets > 0 ? 'success' : 'error',
+          message: nMarkets > 0
+            ? `✅ Scraping completato: ${nMarkets} mercati, ${nVb} value bet${errMsg}`
+            : `⚠️ Nessuna quota trovata${errMsg}`,
+        });
+      } else {
+        const errSummary = (data.errors || []).slice(0, 2).join(' | ');
+        setToast({
+          type: 'error',
+          message: `⚠️ Nessuna quota estratta. ${errSummary || 'Partita non trovata sui bookmaker.'}`,
+        });
+      }
+    } catch (e) {
+      setToast({ type: 'error', message: `Scraping fallito: ${e.message}` });
+    } finally {
+      setIsScrapingLoading(false);
+    }
   }
 
   // Handle typing odds (only updates activeEditOdds)
@@ -255,17 +347,43 @@ function AnalysisContent() {
 
 
 
-  async function clearAllOdds() {
+  async function clearOdds(bookmaker = null) {
     if (!matchKey) return;
-    if (!confirm('Vuoi davvero cancellare tutte le quote per questa partita?')) return;
+    const msg = bookmaker ? `Vuoi davvero cancellare tutte le quote di ${bookmaker} per questa partita?` : 'Vuoi davvero cancellare tutte le quote per questa partita?';
+    if (!confirm(msg)) return;
     
     try {
-      await fetch(`/api/analysis/odds?matchKey=${encodeURIComponent(matchKey)}`, { method: 'DELETE' });
-      setOdds({});
-      setActiveEditOdds({});
+      let url = `/api/analysis/odds?matchKey=${encodeURIComponent(matchKey)}`;
+      if (bookmaker) {
+        url += `&bookmaker=${encodeURIComponent(bookmaker)}`;
+      }
+      
+      await fetch(url, { method: 'DELETE' });
+      
+      if (bookmaker) {
+        setOdds(prev => {
+          const updated = { ...prev };
+          for (const m in updated) {
+            updated[m] = { ...updated[m] };
+            updated[m][bookmaker] = null;
+          }
+          return updated;
+        });
+        setActiveEditOdds(prev => {
+          const updated = { ...prev };
+          for (const m in updated) {
+            if(updated[m]) updated[m] = { ...updated[m], [bookmaker]: '' };
+          }
+          return updated;
+        });
+      } else {
+        setOdds({});
+        setActiveEditOdds({});
+      }
+      
       setHighlightedRow(null);
-      setToast({ type: 'success', message: 'Quote cancellate.' });
-      runAnalysis(); // re-fetch to clear custom bets from UI
+      setToast({ type: 'success', message: bookmaker ? `Quote ${bookmaker} cancellate.` : 'Tutte le quote cancellate.' });
+      runAnalysis(); // re-fetch to clear UI Custom bets properly
     } catch (e) {
       setToast({ type: 'error', message: 'Errore durante la cancellazione' });
     }
@@ -416,14 +534,21 @@ function AnalysisContent() {
             </div>
             <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
               {pendingMatches.map(pm => (
-                <div key={pm.match_key} style={{ position: 'relative', display: 'flex' }}>
+                <div key={pm.match_key} style={{ position: 'relative', display: 'flex', gap: 0 }}>
                   <button
                     className="btn btn-secondary"
-                    style={{ whiteSpace: 'nowrap', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '8px 12px', paddingRight: '28px' }}
+                    style={{ whiteSpace: 'nowrap', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '8px 12px', paddingRight: '28px', opacity: pm.in_gioco ? 0.5 : 1 }}
                     onClick={() => loadPendingMatch(pm)}
                   >
                     <strong style={{ fontSize: 13 }}>{pm.home_team} - {pm.away_team}</strong>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{pm.league} • {pm.odds_count} quote • Arb: {pm.referee || 'N/A'}</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{pm.league} • {pm.odds_count} quote • Arb: {pm.referee || 'N/A'}{pm.in_gioco ? ' • 🔴 IN GIOCO' : ''}</span>
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleInGioco(pm.match_key, pm.in_gioco); }}
+                    title={pm.in_gioco ? 'Riattiva partita' : 'Segna come In Gioco'}
+                    style={{ background: pm.in_gioco ? 'rgba(239,68,68,0.15)' : 'var(--bg-card)', border: 'none', borderRadius: '6px', width: 28, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: pm.in_gioco ? 'var(--red)' : 'var(--text-muted)', fontSize: 12, margin: '0 2px 0 0' }}
+                  >
+                    {pm.in_gioco ? '🔴' : '⚽'}
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); deletePendingMatch(pm.match_key); }}
@@ -471,10 +596,31 @@ function AnalysisContent() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-            <button className="btn btn-primary btn-lg" onClick={() => runAnalysis()} disabled={!league || !homeTeam || !awayTeam || loading} style={{ flex: 1 }}>
+            <button className="btn btn-primary btn-lg" onClick={() => runAnalysis()} disabled={!league || !homeTeam || !awayTeam || loading || isScrapingLoading} style={{ flex: 1 }}>
               {loading ? <><span className="loading-spinner" /> Elaborazione...</> : '🔍 Genera Analisi'}
             </button>
-            <button className="btn btn-secondary btn-lg" onClick={() => swapTeams()} disabled={!league || !homeTeam || !awayTeam || loading} title="Inverti Casa/Trasferta senza perdere le quote" style={{ padding: '0 16px' }}>
+            <button
+              className="btn btn-scrape btn-lg"
+              onClick={runScraping}
+              disabled={!league || !homeTeam || !awayTeam || loading || isScrapingLoading || !results}
+              title="Scrapa automaticamente le quote da Sportium e Sportbet"
+              style={{ flex: 1, position: 'relative', overflow: 'hidden' }}
+            >
+              {isScrapingLoading ? (
+                <><span className="loading-spinner" /> ⏳ Scraping in corso...</>
+              ) : (
+                '🤖 Scraping Quote'
+              )}
+              {isScrapingLoading && (
+                <span style={{
+                  position: 'absolute', bottom: 0, left: 0,
+                  height: 3, width: '100%',
+                  background: 'linear-gradient(90deg, transparent 0%, var(--accent-primary) 50%, transparent 100%)',
+                  animation: 'scrape-bar 1.5s linear infinite',
+                }} />
+              )}
+            </button>
+            <button className="btn btn-secondary btn-lg" onClick={() => swapTeams()} disabled={!league || !homeTeam || !awayTeam || loading || isScrapingLoading} title="Inverti Casa/Trasferta senza perdere le quote" style={{ padding: '0 16px' }}>
               🔄 Scambia
             </button>
           </div>
@@ -553,8 +699,11 @@ function AnalysisContent() {
                 Solo Value Bet
               </label>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
-                <button className="btn btn-danger btn-sm" onClick={clearAllOdds} disabled={Object.keys(odds).length === 0}>
-                  🗑️ Cancella Quote
+                <button className="btn btn-danger btn-sm" onClick={() => clearOdds('sportbet')} disabled={Object.keys(odds).length === 0} style={{ opacity: 0.8, outline: '1px solid currentColor' }}>
+                  🗑️ Cancella Solo Sportbet
+                </button>
+                <button className="btn btn-danger btn-sm" onClick={() => clearOdds()} disabled={Object.keys(odds).length === 0}>
+                  🗑️ Cancella Tutte
                 </button>
               </div>
             </div>
@@ -599,36 +748,58 @@ function AnalysisContent() {
                         <td style={{ fontWeight: 600, color: 'var(--accent-secondary)' }}>
                           {m.minOdds || '—'}
                         </td>
-                        <td>
+                        <td style={{ position: 'relative' }}>
                           {!m.isDiscarded && (
-                            <input
-                              type="number"
-                              className={`odds-input ${odds[m.name]?.sportium ? 'has-value' : ''}`}
-                              step="0.01"
-                              min="1"
-                              placeholder="—"
-                              ref={el => setOddsRef(m.name, 'sportium', el)}
-                              value={activeEditOdds[m.name]?.sportium !== undefined ? activeEditOdds[m.name]?.sportium : ''}
-                              onChange={e => handleOddsChange(m.name, 'sportium', e.target.value)}
-                              onBlur={e => handleOddsBlur(m.name, 'sportium', e.target.value)}
-                              onKeyDown={e => handleOddsKeyDown(e, m.name, 'sportium')}
-                            />
+                            <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}>
+                              <input
+                                type="number"
+                                className={`odds-input ${odds[m.name]?.sportium ? 'has-value' : ''} ${scrapedMarkets.has(m.name) && odds[m.name]?.sportium ? 'scraped-value' : ''}`}
+                                step="0.01"
+                                min="1"
+                                placeholder="—"
+                                ref={el => setOddsRef(m.name, 'sportium', el)}
+                                value={activeEditOdds[m.name]?.sportium !== undefined ? activeEditOdds[m.name]?.sportium : ''}
+                                onChange={e => handleOddsChange(m.name, 'sportium', e.target.value)}
+                                onBlur={e => handleOddsBlur(m.name, 'sportium', e.target.value)}
+                                onKeyDown={e => handleOddsKeyDown(e, m.name, 'sportium')}
+                              />
+                              {scrapedMarkets.has(m.name) && odds[m.name]?.sportium && (
+                                <span title="Quota dallo scraper" style={{
+                                  position: 'absolute', top: -6, right: -6,
+                                  background: 'var(--green)', color: '#fff',
+                                  borderRadius: '50%', width: 14, height: 14,
+                                  fontSize: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  fontWeight: 700, lineHeight: 1, zIndex: 2,
+                                }}>🤖</span>
+                              )}
+                            </div>
                           )}
                         </td>
-                        <td>
+                        <td style={{ position: 'relative' }}>
                           {!m.isDiscarded && (
-                            <input
-                              type="number"
-                              className={`odds-input ${odds[m.name]?.sportbet ? 'has-value' : ''}`}
-                              step="0.01"
-                              min="1"
-                              placeholder="—"
-                              ref={el => setOddsRef(m.name, 'sportbet', el)}
-                              value={activeEditOdds[m.name]?.sportbet !== undefined ? activeEditOdds[m.name]?.sportbet : ''}
-                              onChange={e => handleOddsChange(m.name, 'sportbet', e.target.value)}
-                              onBlur={e => handleOddsBlur(m.name, 'sportbet', e.target.value)}
-                              onKeyDown={e => handleOddsKeyDown(e, m.name, 'sportbet')}
-                            />
+                            <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}>
+                              <input
+                                type="number"
+                                className={`odds-input ${odds[m.name]?.sportbet ? 'has-value' : ''} ${scrapedMarkets.has(m.name) && odds[m.name]?.sportbet ? 'scraped-value' : ''}`}
+                                step="0.01"
+                                min="1"
+                                placeholder="—"
+                                ref={el => setOddsRef(m.name, 'sportbet', el)}
+                                value={activeEditOdds[m.name]?.sportbet !== undefined ? activeEditOdds[m.name]?.sportbet : ''}
+                                onChange={e => handleOddsChange(m.name, 'sportbet', e.target.value)}
+                                onBlur={e => handleOddsBlur(m.name, 'sportbet', e.target.value)}
+                                onKeyDown={e => handleOddsKeyDown(e, m.name, 'sportbet')}
+                              />
+                              {scrapedMarkets.has(m.name) && odds[m.name]?.sportbet && (
+                                <span title="Quota dallo scraper" style={{
+                                  position: 'absolute', top: -6, right: -6,
+                                  background: 'var(--green)', color: '#fff',
+                                  borderRadius: '50%', width: 14, height: 14,
+                                  fontSize: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  fontWeight: 700, lineHeight: 1, zIndex: 2,
+                                }}>🤖</span>
+                              )}
+                            </div>
                           )}
                         </td>
                         <td>

@@ -1,0 +1,17 @@
+[
+  "https://api2.sportium.it/api/Environment/GetPreBaseEnvironmentData",
+  "https://api2.sportium.it/api/Environment/GetBaseEnvironmentData",
+  "https://api2.sportium.it/api/BetPlay/GetBetParameters?isLogged=false",
+  "https://api2.sportium.it/api/Account/GetMetodiPagamento",
+  "https://api2.sportium.it/api/Game/CasinoJackpots",
+  "https://api2.sportium.it/api/BetPlay/GetPromo?nocache=false",
+  "https://api2.sportium.it/api/Palinsesto/GetTypesAnagPatterns",
+  "https://api2.sportium.it/api/Environment/GetSiteUrlPageMetadata",
+  "https://api2.sportium.it/api/Palinsesto/GetAllEventsPrematch",
+  "https://api2.sportium.it/api/Palinsesto/GetBetBuilderDef",
+  "https://api2.sportium.it/api/Environment/GetMessages?trigger=1&page=null&platform=0",
+  "https://api2.sportium.it/api/CMS/GetCmsObject?id=&layoutArea=V3_LayoutArea_GamesSections",
+  "https://api2.sportium.it/api/CMS/GetCmsObject?id=&layoutArea=V3_LayoutArea_ContenutiVideo",
+  "https://api2.sportium.it/api/CMS/GetCmsObject?id=&layoutArea=LayoutArea_V3_PromozioniMerged",
+  "https://api2.sportium.it/api/Palinsesto/GetPalinsestoCore?v=c8d6f143320e421bb2d8939bbc5eb6f9f2f38305a1dc73eec34b474f2d139fbe"
+]

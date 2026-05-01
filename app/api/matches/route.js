@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDb, getSetting } from '@/lib/db';
 import { EV_AVANZATO, SD_AVANZATO, CV_CALC } from '@/lib/engine';
 import { PROB_BINOM_NEG, PROB_1X2_IBRIDO } from '@/lib/probability';
 import { getAllMarkets, getCategory, generateCustomMarket } from '@/lib/markets';
@@ -138,6 +138,8 @@ export async function POST(request) {
           allMarkets.push(generateCustomMarket(row.custom_stat, row.custom_type, row.custom_scope, row.custom_direction, row.custom_line, row.custom_esito));
         }
 
+        const minProb = parseFloat(await getSetting('min_probability') || '0.65');
+
         const insertBacktestSql = `
           INSERT INTO backtest_bets (match_key, match_date, bet_name, bet_category, probability, sportium, sportbet, best_edge, outcome)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -167,7 +169,7 @@ export async function POST(request) {
             const edgeSb = getEdge(probability, oddRow.sportbet);
             const bestEdge = Math.max(edgeSp || -999, edgeSb || -999);
 
-            if (bestEdge > 0) { // VALUE BET TROVATA
+            if (bestEdge > 0 && probability >= minProb) { // VALUE BET TROVATA E PROB > SOGLIA MINIMA
               const out = gradeBet(market.name, match);
               await db.execute({
                 sql: insertBacktestSql,

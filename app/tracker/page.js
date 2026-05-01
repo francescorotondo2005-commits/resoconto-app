@@ -15,6 +15,7 @@ export default function TrackerPage() {
   const [backtestBets, setBacktestBets] = useState([]);
   const [backtestStats, setBacktestStats] = useState({});
   const [minBacktestEdge, setMinBacktestEdge] = useState(0.15); // Default 15%
+  const [minBacktestProb, setMinBacktestProb] = useState(0.65); // Default 65%
 
   const [toast, setToast] = useState(null);
   
@@ -118,7 +119,7 @@ export default function TrackerPage() {
     bankrollHistory.push(runningTotal);
   }
 
-  const filteredBacktestBets = backtestBets.filter(b => b.best_edge >= minBacktestEdge);
+  const filteredBacktestBets = backtestBets.filter(b => b.best_edge >= minBacktestEdge && b.probability >= minBacktestProb);
   
   const backtestHistory = [];
   let btTotal = 0;
@@ -281,10 +282,17 @@ export default function TrackerPage() {
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0, flex: 1 }}>
                   <strong>Cosa vedo qui?</strong> Il sistema registra *ogni scommessa* calcolata in Analisi prima che sia refertata.
                 </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bg-secondary)', padding: '6px 16px', borderRadius: 'var(--radius-lg)' }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-primary)', textTransform: 'uppercase' }}>Filtra Edge Minimo:</label>
-                  <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 60, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(minBacktestEdge * 100)} onChange={e => setMinBacktestEdge(parseFloat(e.target.value) / 100 || 0)} />
-                  <span style={{ fontSize: 14, fontWeight: 600 }}>%</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-secondary)', padding: '6px 16px', borderRadius: 'var(--radius-lg)' }}>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-primary)', textTransform: 'uppercase' }}>Edge Minimo:</label>
+                    <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 60, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(minBacktestEdge * 100)} onChange={e => setMinBacktestEdge(parseFloat(e.target.value) / 100 || 0)} />
+                    <span style={{ fontSize: 14, fontWeight: 600 }}>%</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-secondary)', padding: '6px 16px', borderRadius: 'var(--radius-lg)' }}>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-primary)', textTransform: 'uppercase' }}>Prob Minima:</label>
+                    <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 60, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(minBacktestProb * 100)} onChange={e => setMinBacktestProb(parseFloat(e.target.value) / 100 || 0)} />
+                    <span style={{ fontSize: 14, fontWeight: 600 }}>%</span>
+                  </div>
                 </div>
               </div>
             </div>

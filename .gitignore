@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/scraper-service/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -44,3 +45,49 @@ next-env.d.ts
 resoconto.db
 resoconto.db-wal
 resoconto.db-shm
+
+# File di debug, test e dump (non necessari per Vercel)
+debug_*.js
+debug_*.json
+debug_*.png
+debug_*.html
+debug_*.txt
+test-*.js
+test-*.txt
+test-*.png
+test_*.js
+test_*.txt
+guess_api*.js
+parse_html*.js
+patch-map*.js
+rewrite.js
+dump_html.js
+read_html.js
+scratch_*.js
+verify_fix.js
+inspect_staryes.js
+*.html
+*.txt
+!README.md
+!AGENTS.md
+!CLAUDE.md
+!lib/sportbet_market_map.md
+row_html.txt
+*.png
+!public/**
+sportbet*.png
+sportbet*.html
+sportium*.png
+sportium*.html
+sportium*.txt
+staryes*.png
+staryes*.html
+staryes*.txt
+staryes*.json
+live_*.json
+
+# ngrok executable (binario grande, non necessario per Vercel)
+ngrok.exe
+
+# start script mobile (solo locale)
+start-mobile.bat

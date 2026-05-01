@@ -17,6 +17,23 @@ export async function GET(request) {
   }
 }
 
+export async function PATCH(request) {
+  try {
+    const { matchKey, in_gioco } = await request.json();
+    if (!matchKey) return NextResponse.json({ error: 'Manca matchKey' }, { status: 400 });
+
+    const db = await getDb();
+    await db.execute({
+      sql: 'UPDATE pending_matches SET in_gioco = ? WHERE match_key = ?',
+      args: [in_gioco ? 1 : 0, matchKey],
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
 export async function DELETE(request) {
   try {
     const url = new URL(request.url);

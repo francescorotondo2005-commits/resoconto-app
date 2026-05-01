@@ -766,3 +766,35 @@ tr:hover td {
   background: var(--red);
   color: white;
 }
+
+/* ===== SCRAPING BUTTON ===== */
+.btn-scrape {
+  background: linear-gradient(135deg, #00cec9, #0984e3);
+  color: white;
+  border: none;
+}
+
+.btn-scrape:hover:not(:disabled) {
+  background: linear-gradient(135deg, #00b5b2, #0773c5);
+  box-shadow: 0 4px 16px rgba(0, 206, 201, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-scrape:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Odds input con quota dallo scraper */
+.odds-input.scraped-value {
+  border-color: var(--accent-secondary);
+  background: rgba(0, 206, 201, 0.08);
+  box-shadow: 0 0 0 2px rgba(0, 206, 201, 0.15);
+}
+
+/* Animation barra di progresso scraping */
+@keyframes scrape-bar {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}

@@ -175,8 +175,11 @@ function ValueBetsContent() {
                   const hasSelection = isSelectedSportium || isSelectedSportbet;
                   
                   return (
-                  <tr key={`${key}-${i}`} className={hasSelection ? 'row-highlight' : ''}>
-                    <td style={{ fontWeight: 600, fontSize: 13, color: 'var(--blue)' }}>{bet.matchStr}</td>
+                  <tr key={`${key}-${i}`} className={hasSelection ? 'row-highlight' : ''} style={{ opacity: bet.inGioco ? 0.38 : 1, pointerEvents: bet.inGioco ? 'none' : 'auto' }}>
+                    <td style={{ fontWeight: 600, fontSize: 13, color: 'var(--blue)' }}>
+                      {bet.matchStr}
+                      {bet.inGioco && <span style={{ marginLeft: 6, fontSize: 10, background: 'var(--red)', color: '#fff', padding: '2px 5px', borderRadius: 4, fontWeight: 700, verticalAlign: 'middle' }}>🔴 IN GIOCO</span>}
+                    </td>
                     <td style={{ fontWeight: 600, fontSize: 13 }}>{bet.name}</td>
                     <td><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{bet.category}</span></td>
                     <td>{bet.ev}</td>
@@ -357,10 +360,10 @@ function ValueBetsContent() {
                 <label>Stake (€)</label>
                 <input 
                   type="number" 
-                  value={betModal.stake} 
+                  value={isNaN(betModal.stake) ? '' : betModal.stake} 
                   min="1" 
                   step="0.5" 
-                  onChange={e => setBetModal({ ...betModal, stake: parseFloat(e.target.value) })} 
+                  onChange={e => setBetModal({ ...betModal, stake: e.target.value === '' ? '' : parseFloat(e.target.value) })} 
                 />
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>

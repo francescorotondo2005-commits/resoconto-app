@@ -379,6 +379,8 @@ export async function GET(request) {
              historyMessage = "Dati storici non parseabili per questa scommessa.";
           }
 
+          const inGioco = pendingInfo?.in_gioco === 1;
+
           valueBets.push({
             matchKey,
             league,
@@ -401,14 +403,18 @@ export async function GET(request) {
             odds_sportbet: mktRow.sportbet || null,
             edge_sportbet: sportbetEdge > -900 ? Math.round(sportbetEdge * 10000) / 10000 : null,
             historyMessage,
-            refereeRating: refereeRating, 
+            refereeRating: refereeRating,
+            inGioco,
           });
         }
       }
     }
 
-    // Sort globally by Edge descending
-    valueBets.sort((a, b) => b.edge - a.edge);
+    // Sort: partite attive prima (edge desc), partite in gioco in fondo (edge desc)
+    valueBets.sort((a, b) => {
+      if (a.inGioco !== b.inGioco) return a.inGioco ? 1 : -1;
+      return b.edge - a.edge;
+    });
 
     return NextResponse.json({ valueBets });
   } catch (error) {

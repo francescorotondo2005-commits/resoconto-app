@@ -75,13 +75,21 @@ export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url);
     const matchKey = searchParams.get('matchKey');
+    const bookmaker = searchParams.get('bookmaker');
 
     if (!matchKey) {
       return NextResponse.json({ error: 'matchKey richiesto' }, { status: 400 });
     }
 
     const db = await getDb();
-    await db.execute({ sql: 'DELETE FROM match_odds WHERE match_key = ?', args: [matchKey] });
+    
+    if (bookmaker === 'sportbet') {
+      await db.execute({ sql: 'UPDATE match_odds SET sportbet = NULL WHERE match_key = ?', args: [matchKey] });
+    } else if (bookmaker === 'sportium') {
+      await db.execute({ sql: 'UPDATE match_odds SET sportium = NULL WHERE match_key = ?', args: [matchKey] });
+    } else {
+      await db.execute({ sql: 'DELETE FROM match_odds WHERE match_key = ?', args: [matchKey] });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
