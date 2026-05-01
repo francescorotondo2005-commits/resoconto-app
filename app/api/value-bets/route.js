@@ -5,119 +5,9 @@ import { EV_AVANZATO, SD_AVANZATO, CV_CALC } from '@/lib/engine';
 import { PROB_BINOM_NEG, PROB_1X2_IBRIDO } from '@/lib/probability';
 import { getCategory, generateCustomMarket, getAllMarkets } from '@/lib/markets';
 import { INDICE_ARBITRO_AVANZATO } from '@/lib/referee';
+import { calcHistorySummary, calcFormSummary } from '@/lib/history';
 
-function checkHistoricalCondition(parsedMkt, match, teamRole, trackType) {
-  const { type, stat, direction, line, esito } = parsedMkt;
-  
-  let actualValue = 0;
-  if (trackType === 'totale') {
-    actualValue = getMatchStatValue(match, stat, 'totale');
-  } else if (trackType === 'made') {
-    actualValue = teamRole === 'home' 
-      ? getMatchStatValue(match, stat, 'casa') 
-      : getMatchStatValue(match, stat, 'ospite');
-  } else if (trackType === 'conceded') {
-    actualValue = teamRole === 'home' 
-      ? getMatchStatValue(match, stat, 'ospite') 
-      : getMatchStatValue(match, stat, 'casa');
-  }
 
-  if (type === 'over_under') {
-    if (direction === 'over') return actualValue > line;
-    if (direction === 'under') return actualValue < line;
-  } else if (type === '1x2') {
-    const homeVal = getMatchStatValue(match, stat, 'casa');
-    const awayVal = getMatchStatValue(match, stat, 'ospite');
-    
-    let originalHomeWon = false;
-    let originalDraw = (homeVal === awayVal);
-    let originalAwayWon = false;
-
-    // Se trackType è 'made', seguiamo il team originale "Casa". Il teamRole indica se questo team ora gioca in casa o fuori.
-    // In realtà per 1x2, "esito" fissa chi deve vincere:
-    // '1': deve vincere il team Casa originale.
-    // 'X': pareggio.
-    // '2': deve vincere il team Ospite originale.
-    
-    let teamWon = false;
-    let teamLost = false;
-
-    if (teamRole === 'home') {
-      teamWon = homeVal > awayVal;
-      teamLost = homeVal < awayVal;
-    } else {
-      teamWon = awayVal > homeVal;
-      teamLost = awayVal < homeVal;
-    }
-
-    if (esito === 'X') return originalDraw;
-    
-    if (trackType === 'made') {
-      // Stiamo tracciando il team il cui esito auspicato è la VITTORIA (esito '1' per Home, '2' per Away).
-      // Quindi verifichiamo se il team ha effettivamente Vinto.
-      return teamWon;
-    } else if (trackType === 'conceded') {
-      // Stiamo tracciando l'AVVERSARIO del team che deve vincere. Verifichiamo se l'avversario ha PERSO.
-      return teamLost;
-    }
-  }
-  return false;
-}
-
-function calculateTrendLabel(teamName, parsedMkt, matches, trackType, roleFilter) {
-  let totalMatches = 0;
-  let totalHits = 0;
-  
-  let homeMatches = 0;
-  let homeHits = 0;
-  
-  let awayMatches = 0;
-  let awayHits = 0;
-
-  for (const m of matches) {
-    if (m.home_team === teamName) {
-      totalMatches++;
-      homeMatches++;
-      if (checkHistoricalCondition(parsedMkt, m, 'home', trackType)) {
-        totalHits++;
-        homeHits++;
-      }
-    } else if (m.away_team === teamName) {
-      totalMatches++;
-      awayMatches++;
-      if (checkHistoricalCondition(parsedMkt, m, 'away', trackType)) {
-        totalHits++;
-        awayHits++;
-      }
-    }
-  }
-
-  if (totalMatches === 0) return `${teamName}: Nessun dato disponibile.`;
-
-  const totalPct = Math.round((totalHits / totalMatches) * 100);
-  
-  let result = `${teamName}: %VERB% ${totalHits} volte su ${totalMatches} (${totalPct}%)`;
-  
-  const additionalDetails = [];
-  
-  // Se è "home" o "totale", mostra il breakdown in casa
-  if (roleFilter !== 'away' && homeMatches > 0) {
-    const homePct = Math.round((homeHits / homeMatches) * 100);
-    additionalDetails.push(`${homeHits} volte su ${homeMatches} in casa (${homePct}%)`);
-  }
-  
-  // Se è "away" o "totale", mostra il breakdown in trasferta
-  if (roleFilter !== 'home' && awayMatches > 0) {
-    const awayPct = Math.round((awayHits / awayMatches) * 100);
-    additionalDetails.push(`${awayHits} volte su ${awayMatches} in trasferta (${awayPct}%)`);
-  }
-
-  if (additionalDetails.length > 0) {
-    result += `, di cui ${additionalDetails.join(' e ')}`;
-  }
-
-  return result + ".";
-}
 
 export async function GET(request) {
   try {
@@ -301,82 +191,13 @@ export async function GET(request) {
         // We only care about edges strictly > 0 for Scanner AND Probability >= minProb
         if (bestEdge > 0 && probability >= minProb) {
           
-          // Generate Historical Hit Rate Message
+          // Calcolo Hist e Form usando le stesse logiche del backtest
           const parsed = parseMarketName(marketDef.name);
-          let historyMessage = '';
+          let hist = null;
+          let form = null;
           if (parsed) {
-             let trackHome = 'totale';
-             let trackAway = 'totale';
-             let verbHome = 'ha registrato questo esito';
-             let verbAway = 'ha registrato questo esito';
-
-             if (parsed.scope === 'casa') {
-               trackHome = 'made';
-               verbHome = "ha FATTO l'esito richiesto";
-               trackAway = 'conceded';
-               verbAway = "ha SUBITO l'esito richiesto";
-             } else if (parsed.scope === 'ospite') {
-               trackHome = 'conceded';
-               verbHome = "ha SUBITO l'esito richiesto";
-               trackAway = 'made';
-               verbAway = "ha FATTO l'esito richiesto";
-             } else if (parsed.type === '1x2') {
-               if (parsed.esito === '1') {
-                 trackHome = 'made'; verbHome = 'ha VINTO';
-                 trackAway = 'conceded'; verbAway = 'ha PERSO';
-               } else if (parsed.esito === '2') {
-                 trackHome = 'conceded'; verbHome = 'ha PERSO';
-                 trackAway = 'made'; verbAway = 'ha VINTO';
-               } else {
-                 trackHome = 'totale'; verbHome = 'ha PAREGGIATO';
-                 trackAway = 'totale'; verbAway = 'ha PAREGGIATO';
-               }
-             }
-
-             const homeMessage = calculateTrendLabel(homeTeam, parsed, matches, trackHome, 'home');
-             const awayMessage = calculateTrendLabel(awayTeam, parsed, matches, trackAway, 'away');
-
-             // Format string replacements
-             const finalHomeStr = homeMessage.replace('%VERB%', verbHome);
-             const finalAwayStr = awayMessage.replace('%VERB%', verbAway);
-
-             // Formal format
-             historyMessage = `<div style="margin-bottom: 12px; line-height: 1.6;"><strong>${homeTeam}</strong>: ${finalHomeStr.substring(finalHomeStr.indexOf(':') + 2)}</div><div style="line-height: 1.6;"><strong>${awayTeam}</strong>: ${finalAwayStr.substring(finalAwayStr.indexOf(':') + 2)}</div>`;
-             
-             // Storico Arbitro
-             if (matchReferee && (parsed.stat === 'falli' || parsed.stat === 'cartellini')) {
-               // Per neutralità e coerenza, consideriamo che se l'utente scommette sui "Falli Casa", stiamo cercando quante volte 
-               // le squadre che giocavano in CASA con questo arbitro hanno verificato l'esito della bet.
-               let refMatches = 0;
-               let refHits = 0;
-               for (const m of matches) {
-                 if (m.referee && m.referee.toLowerCase() === matchReferee.toLowerCase()) {
-                   refMatches++;
-                   // Testiamo l'esito 'come' se fosse il match target.
-                   // La funzione checkHistoricalCondition accetta 'm' (la vecchia partita) e i parametri della bet.
-                   // Se la bet chiede di superare la linea globale, passiamo 'totale'.
-                   let refTrack = trackHome;
-                   if (parsed.scope === 'totale') refTrack = 'totale';
-                   else if (parsed.scope === 'casa') refTrack = 'made';
-                   else if (parsed.scope === 'ospite') refTrack = 'made'; // L'ospite storico fa la linea ospite
-
-                   let conditionMet = false;
-                   if (parsed.scope === 'totale') conditionMet = checkHistoricalCondition(parsed, m, 'home', 'totale');
-                   else if (parsed.scope === 'casa') conditionMet = checkHistoricalCondition(parsed, m, 'home', 'made');
-                   else if (parsed.scope === 'ospite') conditionMet = checkHistoricalCondition(parsed, m, 'away', 'made');
-                   
-                   if (conditionMet) refHits++;
-                 }
-               }
-
-               if (refMatches > 0) {
-                 const refPct = Math.round((refHits / refMatches) * 100);
-                 historyMessage += `<div style="margin-top: 12px; line-height: 1.6; padding-top: 12px; border-top: 1px dashed var(--border);"><strong>Arbitro ${matchReferee}</strong>: L'esito si è verificato in ${refHits} su ${refMatches} partite da lui dirette in campionato (${refPct}%).</div>`;
-               }
-             }
-
-          } else {
-             historyMessage = "Dati storici non parseabili per questa scommessa.";
+            hist = calcHistorySummary(homeTeam, awayTeam, matchReferee, marketDef.name, matches);
+            form = calcFormSummary(homeTeam, awayTeam, matchReferee, marketDef.name, matches, 5);
           }
 
           const inGioco = pendingInfo?.in_gioco === 1;

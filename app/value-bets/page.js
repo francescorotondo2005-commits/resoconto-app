@@ -163,7 +163,8 @@ function ValueBetsContent() {
                   <th>Prob.</th>
                   <th>Edge Max</th>
                   <th>Quote (Clicca per Multipla)</th>
-                  <th>Stats Storiche</th>
+                  <th style={{ color: 'var(--green)' }}>Hist%</th>
+                  <th style={{ color: 'var(--orange, #f59e0b)' }}>Form%</th>
                   <th>Azione</th>
                 </tr>
               </thead>
@@ -224,19 +225,37 @@ function ValueBetsContent() {
                       </div>
                     </td>
                     <td>
-                      <button 
-                         className="btn btn-secondary btn-sm" 
-                         onClick={() => setHistoryModal({ bet })}
-                         style={{ padding: '4px 10px', fontSize: 11, background: 'rgba(255, 255, 255, 0.05)' }}>
-                        📊 Storico
-                      </button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {bet.histScore !== null ? (
+                          <span style={{ fontWeight: 700, fontSize: 13, color: bet.histScore >= 0.65 ? 'var(--green)' : bet.histScore >= 0.50 ? 'var(--accent-secondary)' : 'var(--red)' }}>
+                            {Math.round(bet.histScore * 100)}%
+                          </span>
+                        ) : <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</span>}
+                      </div>
                     </td>
                     <td>
-                      <button 
-                         className="btn btn-success btn-sm" 
-                         onClick={() => setBetModal({ bet, stake: 1 })}>
-                        Gioca
-                      </button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {bet.formScore !== null ? (
+                          <span style={{ fontWeight: 700, fontSize: 13, color: bet.formScore >= 0.65 ? 'var(--green)' : bet.formScore >= 0.50 ? 'var(--accent-secondary)' : 'var(--red)' }}>
+                            {Math.round(bet.formScore * 100)}%
+                          </span>
+                        ) : <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</span>}
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button 
+                           className="btn btn-secondary btn-sm" 
+                           onClick={() => setHistoryModal({ bet })}
+                           style={{ padding: '4px 10px', fontSize: 11, background: 'rgba(255, 255, 255, 0.05)' }}>
+                          📊 Dettagli
+                        </button>
+                        <button 
+                           className="btn btn-success btn-sm" 
+                           onClick={() => setBetModal({ bet, stake: 1 })}>
+                          Gioca
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )})}
@@ -309,31 +328,109 @@ function ValueBetsContent() {
           </div>
         )}
 
-        {/* Modal Storico Stagionale */}
-        {historyModal && (
-          <div className="modal-overlay" onClick={() => setHistoryModal(null)}>
-            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
-              <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '16px', marginBottom: '20px' }}>
-                <div style={{ fontSize: 13, color: 'var(--accent-primary)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 6 }}>
-                  Storico Stagionale
+        {/* Modal Storico + Forma Scanner */}
+        {historyModal && (() => {
+          const b = historyModal.bet;
+          const fmtPct = (v) => v !== null && v !== undefined ? `${Math.round(v * 100)}%` : '—';
+          const histColor = (v) => v === null || v === undefined ? 'var(--text-muted)'
+            : v >= 0.65 ? 'var(--green)' : v >= 0.50 ? 'var(--accent-secondary)' : 'var(--red)';
+            
+          return (
+            <div className="modal-overlay" onClick={() => setHistoryModal(null)}>
+              <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+                <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: 14, marginBottom: 18 }}>
+                  <div style={{ fontSize: 12, color: 'var(--accent-primary)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>
+                    Storico & Forma — Scanner
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>{b.name}</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+                    {b.matchStr}
+                  </div>
                 </div>
-                <h2 style={{ fontSize: 20 }}>{historyModal.bet.name}</h2>
-                <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 4 }}>
-                  Partita: {historyModal.bet.matchStr}
+
+                {/* Hist Score globale */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, padding: '12px 16px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', flex: 1 }}>Punteggio Storico Aggregato</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: histColor(b.histScore) }}>
+                    {fmtPct(b.histScore)}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    (Senza arbitro: 50% / 50% — Con arbitro: 25% / 25% / 50%)
+                  </div>
                 </div>
-              </div>
 
-              <div style={{ background: 'var(--bg-secondary)', padding: '20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
-                {/* HTML Iniettato in sicurezza perché proveniente dall'API protetta */}
-                <div dangerouslySetInnerHTML={{ __html: historyModal.bet.historyMessage }} />
-              </div>
+                {/* Dettagli Storico */}
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+                    Dettaglio Storico Stagionale
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div style={{ padding: '12px', background: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{b.homeTeam} (Casa)</div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: histColor(b.hist?.homePct) }}>
+                        {fmtPct(b.hist?.homePct)}
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                        Campione: {b.hist?.homeSample ?? 0} match
+                      </div>
+                    </div>
+                    <div style={{ padding: '12px', background: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{b.awayTeam} (Trasferta)</div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: histColor(b.hist?.awayPct) }}>
+                        {fmtPct(b.hist?.awayPct)}
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                        Campione: {b.hist?.awaySample ?? 0} match
+                      </div>
+                    </div>
+                  </div>
+                  {b.hist?.refPct !== null && b.hist?.refPct !== undefined && (
+                    <div style={{ padding: '12px', background: 'rgba(16, 185, 129, 0.05)', borderRadius: 8, border: '1px dashed var(--green)', marginTop: 12 }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Arbitro</div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: histColor(b.hist.refPct) }}>
+                        {fmtPct(b.hist.refPct)}
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                        Campione: {b.hist.refSample} match
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-              <div className="form-actions" style={{ marginTop: 24, justifyContent: 'flex-end' }}>
-                <button className="btn btn-secondary" onClick={() => setHistoryModal(null)}>Chiudi Finestra</button>
+                {/* Dettagli Forma */}
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+                    Stato di Forma (Ultime 5 partite)
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div style={{ padding: '12px', background: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{b.homeTeam} (Generale)</div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: histColor(b.form?.homeFormPct) }}>
+                        {fmtPct(b.form?.homeFormPct)}
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                        Ultime {b.form?.homeN ?? 0} partite
+                      </div>
+                    </div>
+                    <div style={{ padding: '12px', background: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{b.awayTeam} (Generale)</div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: histColor(b.form?.awayFormPct) }}>
+                        {fmtPct(b.form?.awayFormPct)}
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                        Ultime {b.form?.awayN ?? 0} partite
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-actions" style={{ marginTop: 24, justifyContent: 'flex-end' }}>
+                  <button className="btn btn-secondary" onClick={() => setHistoryModal(null)}>Chiudi Dettagli</button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Modal Scommessa */}
         {betModal && (
