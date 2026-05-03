@@ -366,22 +366,38 @@ function ValueBetsContent() {
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div style={{ padding: '12px', background: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{b.homeTeam} (Casa)</div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: histColor(b.hist?.homePct) }}>
-                        {fmtPct(b.hist?.homePct)}
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>🏠 {b.homeTeam}</div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: histColor(b.hist?.homePct) }}>{fmtPct(b.hist?.homePct)}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>in casa</div>
                       </div>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-                        Campione: {b.hist?.homeSample ?? 0} match
-                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{b.hist?.homeSample ?? 0} partite</div>
+                      {b.hist?.homePctOverall !== null && b.hist?.homePctOverall !== undefined && (
+                        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--border)' }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: histColor(b.hist?.homePctOverall) }}>{fmtPct(b.hist?.homePctOverall)}</div>
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>totali</div>
+                          </div>
+                          <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 1 }}>{b.hist?.homeSampleOverall ?? 0} partite</div>
+                        </div>
+                      )}
                     </div>
                     <div style={{ padding: '12px', background: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{b.awayTeam} (Trasferta)</div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: histColor(b.hist?.awayPct) }}>
-                        {fmtPct(b.hist?.awayPct)}
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>✈️ {b.awayTeam}</div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: histColor(b.hist?.awayPct) }}>{fmtPct(b.hist?.awayPct)}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>in trasferta</div>
                       </div>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-                        Campione: {b.hist?.awaySample ?? 0} match
-                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{b.hist?.awaySample ?? 0} partite</div>
+                      {b.hist?.awayPctOverall !== null && b.hist?.awayPctOverall !== undefined && (
+                        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--border)' }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: histColor(b.hist?.awayPctOverall) }}>{fmtPct(b.hist?.awayPctOverall)}</div>
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>totali</div>
+                          </div>
+                          <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 1 }}>{b.hist?.awaySampleOverall ?? 0} partite</div>
+                        </div>
+                      )}
                     </div>
                   </div>
                   {b.hist?.refPct !== null && b.hist?.refPct !== undefined && (
@@ -404,22 +420,38 @@ function ValueBetsContent() {
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div style={{ padding: '12px', background: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{b.homeTeam} (Generale)</div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: histColor(b.form?.homeFormPct) }}>
-                        {fmtPct(b.form?.homeFormPct)}
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>🏠 {b.homeTeam}</div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: histColor(b.form?.homeFormPct) }}>{fmtPct(b.form?.homeFormPct)}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>ult. in casa</div>
                       </div>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-                        Ultime {b.form?.homeN ?? 0} partite
-                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>su {b.form?.homeN ?? '—'} match</div>
+                      {b.form?.homeGenFormPct !== null && b.form?.homeGenFormPct !== undefined && (
+                        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--border)' }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: histColor(b.form?.homeGenFormPct) }}>{fmtPct(b.form?.homeGenFormPct)}</div>
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>ult. ovunque</div>
+                          </div>
+                          <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 1 }}>su {b.form?.homeGenN ?? '—'} match</div>
+                        </div>
+                      )}
                     </div>
                     <div style={{ padding: '12px', background: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{b.awayTeam} (Generale)</div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: histColor(b.form?.awayFormPct) }}>
-                        {fmtPct(b.form?.awayFormPct)}
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>✈️ {b.awayTeam}</div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: histColor(b.form?.awayFormPct) }}>{fmtPct(b.form?.awayFormPct)}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>ult. in trasf.</div>
                       </div>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-                        Ultime {b.form?.awayN ?? 0} partite
-                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>su {b.form?.awayN ?? '—'} match</div>
+                      {b.form?.awayGenFormPct !== null && b.form?.awayGenFormPct !== undefined && (
+                        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--border)' }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: histColor(b.form?.awayGenFormPct) }}>{fmtPct(b.form?.awayGenFormPct)}</div>
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>ult. ovunque</div>
+                          </div>
+                          <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 1 }}>su {b.form?.awayGenN ?? '—'} match</div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

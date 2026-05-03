@@ -5,6 +5,7 @@ import { PROB_BINOM_NEG, PROB_1X2_IBRIDO } from '@/lib/probability';
 import { getAllMarkets, getCategory, generateCustomMarket } from '@/lib/markets';
 import { gradeBet } from '@/lib/grading';
 import { INDICE_ARBITRO_AVANZATO } from '@/lib/referee';
+import { calcHistorySummary, calcFormSummary } from '@/lib/history';
 
 // GET - Fetch matches (with optional league filter)
 export async function GET(request) {
@@ -141,8 +142,16 @@ export async function POST(request) {
         const minProb = parseFloat(await getSetting('min_probability') || '0.65');
 
         const insertBacktestSql = `
-          INSERT INTO backtest_bets (match_key, match_date, bet_name, bet_category, probability, sportium, sportbet, best_edge, outcome)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO backtest_bets (
+            match_key, match_date, bet_name, bet_category, probability, sportium, sportbet, best_edge, outcome,
+            hist_score, home_hist_pct, home_hist_sample, away_hist_pct, away_hist_sample,
+            home_hist_overall_pct, home_hist_overall_sample, away_hist_overall_pct, away_hist_overall_sample,
+            ref_hist_pct, ref_hist_sample,
+            form_home_pct, form_home_n, form_away_pct, form_away_n,
+            form_home_gen_pct, form_home_gen_n, form_away_gen_pct, form_away_gen_n,
+            form_ref_pct, form_ref_n
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         for (const market of allMarkets) {
@@ -171,9 +180,20 @@ export async function POST(request) {
 
             if (bestEdge > 0 && probability >= minProb) { // VALUE BET TROVATA E PROB > SOGLIA MINIMA
               const out = gradeBet(market.name, match);
+              const hist = calcHistorySummary(match.home_team, match.away_team, match.referee, market.name, pastMatches);
+              const form = calcFormSummary(match.home_team, match.away_team, match.referee, market.name, pastMatches, 5);
+              
               await db.execute({
                 sql: insertBacktestSql,
-                args: [matchKey, match.date, market.name, getCategory(market.stat), probability, oddRow.sportium || null, oddRow.sportbet || null, bestEdge, out]
+                args: [
+                  matchKey, match.date, market.name, getCategory(market.stat), probability, oddRow.sportium || null, oddRow.sportbet || null, bestEdge, out,
+                  hist?.histScore ?? null, hist?.homePct ?? null, hist?.homeSample ?? null, hist?.awayPct ?? null, hist?.awaySample ?? null,
+                  hist?.homePctOverall ?? null, hist?.homeSampleOverall ?? null, hist?.awayPctOverall ?? null, hist?.awaySampleOverall ?? null,
+                  hist?.refPct ?? null, hist?.refSample ?? null,
+                  form?.homeFormPct ?? null, form?.homeN ?? null, form?.awayFormPct ?? null, form?.awayN ?? null,
+                  form?.homeGenFormPct ?? null, form?.homeGenN ?? null, form?.awayGenFormPct ?? null, form?.awayGenN ?? null,
+                  form?.refFormPct ?? null, form?.refN ?? null
+                ]
               });
             }
           }

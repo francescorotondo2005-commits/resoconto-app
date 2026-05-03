@@ -609,14 +609,38 @@ export default function TrackerPage() {
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                     <div style={{ padding: '10px 14px', background: 'var(--bg-card-hover)', borderRadius: 8, border: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>🏠 {homeTeam} (Casa)</div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: histColor(b.home_hist_pct) }}>{fmtPct(b.home_hist_pct)}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{b.home_hist_sample ?? 0} partite</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>🏠 {homeTeam}</div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: histColor(b.home_hist_pct) }}>{fmtPct(b.home_hist_pct)}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>in casa</div>
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{b.home_hist_sample ?? 0} partite</div>
+                      {b.home_hist_overall_pct !== null && b.home_hist_overall_pct !== undefined && (
+                        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--border)' }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: histColor(b.home_hist_overall_pct) }}>{fmtPct(b.home_hist_overall_pct)}</div>
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>totali</div>
+                          </div>
+                          <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 1 }}>{b.home_hist_overall_sample ?? 0} partite</div>
+                        </div>
+                      )}
                     </div>
                     <div style={{ padding: '10px 14px', background: 'var(--bg-card-hover)', borderRadius: 8, border: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>✈️ {awayTeam} (Trasferta)</div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: histColor(b.away_hist_pct) }}>{fmtPct(b.away_hist_pct)}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{b.away_hist_sample ?? 0} partite</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>✈️ {awayTeam}</div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: histColor(b.away_hist_pct) }}>{fmtPct(b.away_hist_pct)}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>in trasferta</div>
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{b.away_hist_sample ?? 0} partite</div>
+                      {b.away_hist_overall_pct !== null && b.away_hist_overall_pct !== undefined && (
+                        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--border)' }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: histColor(b.away_hist_overall_pct) }}>{fmtPct(b.away_hist_overall_pct)}</div>
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>totali</div>
+                          </div>
+                          <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 1 }}>{b.away_hist_overall_sample ?? 0} partite</div>
+                        </div>
+                      )}
                     </div>
                     {b.ref_hist_pct !== null && b.ref_hist_pct !== undefined ? (
                       <div style={{ padding: '10px 14px', background: 'var(--bg-card-hover)', borderRadius: 8, border: '1px solid var(--border)' }}>
@@ -641,13 +665,37 @@ export default function TrackerPage() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                     <div style={{ padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border)' }}>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>🏠 {homeTeam}</div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: histColor(b.form_home_pct) }}>{fmtPct(b.form_home_pct)}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Ultime {b.form_home_n ?? '—'} in casa</div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: histColor(b.form_home_pct) }}>{fmtPct(b.form_home_pct)}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>ult. in casa</div>
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>su {b.form_home_n ?? '—'} match</div>
+                      {b.form_home_gen_pct !== null && b.form_home_gen_pct !== undefined && (
+                        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--border)' }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: histColor(b.form_home_gen_pct) }}>{fmtPct(b.form_home_gen_pct)}</div>
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>ult. ovunque</div>
+                          </div>
+                          <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 1 }}>su {b.form_home_gen_n ?? '—'} match</div>
+                        </div>
+                      )}
                     </div>
                     <div style={{ padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border)' }}>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>✈️ {awayTeam}</div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: histColor(b.form_away_pct) }}>{fmtPct(b.form_away_pct)}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Ultime {b.form_away_n ?? '—'} in trasferta</div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: histColor(b.form_away_pct) }}>{fmtPct(b.form_away_pct)}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>ult. in trasf.</div>
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>su {b.form_away_n ?? '—'} match</div>
+                      {b.form_away_gen_pct !== null && b.form_away_gen_pct !== undefined && (
+                        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--border)' }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: histColor(b.form_away_gen_pct) }}>{fmtPct(b.form_away_gen_pct)}</div>
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>ult. ovunque</div>
+                          </div>
+                          <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 1 }}>su {b.form_away_gen_n ?? '—'} match</div>
+                        </div>
+                      )}
                     </div>
                     {b.form_ref_pct !== null && b.form_ref_pct !== undefined ? (
                       <div style={{ padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border)' }}>

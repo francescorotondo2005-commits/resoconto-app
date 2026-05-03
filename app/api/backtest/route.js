@@ -220,17 +220,25 @@ export async function POST(request) {
           sql: `UPDATE backtest_bets SET
             hist_score = ?, home_hist_pct = ?, home_hist_sample = ?,
             away_hist_pct = ?, away_hist_sample = ?,
+            home_hist_overall_pct = ?, home_hist_overall_sample = ?,
+            away_hist_overall_pct = ?, away_hist_overall_sample = ?,
             ref_hist_pct = ?, ref_hist_sample = ?,
             form_home_pct = ?, form_home_n = ?,
             form_away_pct = ?, form_away_n = ?,
+            form_home_gen_pct = ?, form_home_gen_n = ?,
+            form_away_gen_pct = ?, form_away_gen_n = ?,
             form_ref_pct = ?, form_ref_n = ?
           WHERE id = ?`,
           args: [
             hist.histScore, hist.homePct, hist.homeSample,
             hist.awayPct, hist.awaySample,
+            hist.homePctOverall ?? null, hist.homeSampleOverall ?? null,
+            hist.awayPctOverall ?? null, hist.awaySampleOverall ?? null,
             hist.refPct, hist.refSample,
             form?.homeFormPct ?? null, form?.homeN ?? null,
             form?.awayFormPct ?? null, form?.awayN ?? null,
+            form?.homeGenFormPct ?? null, form?.homeGenN ?? null,
+            form?.awayGenFormPct ?? null, form?.awayGenN ?? null,
             form?.refFormPct ?? null, form?.refN ?? null,
             bet.id
           ]
