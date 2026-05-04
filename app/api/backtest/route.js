@@ -41,7 +41,7 @@ function enrichBetWithHistory(bet, matchesBefore, referee) {
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '1000');
+    const limit = parseInt(searchParams.get('limit') || '10000');
     
     const db = await getDb();
     const res = await db.execute({ sql: 'SELECT * FROM backtest_bets ORDER BY created_at DESC LIMIT ?', args: [limit] });
