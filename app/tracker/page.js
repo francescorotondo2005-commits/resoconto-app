@@ -438,19 +438,45 @@ export default function TrackerPage() {
                       : 'var(--red)';
                       
                     let formScore = null;
-                    if (b.form_home_pct !== null && b.form_away_pct !== null) {
-                      formScore = (b.form_home_pct + b.form_away_pct) / 2;
+                    const fParts = [];
+                    if (b.form_home_pct !== null) fParts.push(b.form_home_pct);
+                    if (b.form_away_pct !== null) fParts.push(b.form_away_pct);
+                    if (b.form_home_gen_pct !== null) fParts.push(b.form_home_gen_pct);
+                    if (b.form_away_gen_pct !== null) fParts.push(b.form_away_gen_pct);
+                    if (fParts.length > 0) {
+                      formScore = fParts.reduce((a,v) => a+v, 0) / fParts.length;
                     }
                     const formColor = formScore === null ? 'var(--text-muted)'
                       : formScore >= 0.65 ? 'var(--green)'
                       : formScore >= 0.50 ? 'var(--accent-secondary)'
                       : 'var(--red)';
+                      
+                    // Filtro Cecchino Elite
+                    let isElite = false;
+                    if (formScore > 0.70 && fParts.length === 4 && Math.min(...fParts) >= 0.60) {
+                      const hParts = [];
+                      if (b.home_hist_pct !== null) hParts.push(b.home_hist_pct);
+                      if (b.away_hist_pct !== null) hParts.push(b.away_hist_pct);
+                      if (b.home_hist_overall_pct !== null) hParts.push(b.home_hist_overall_pct);
+                      if (b.away_hist_overall_pct !== null) hParts.push(b.away_hist_overall_pct);
+                      
+                      const hasRef = b.ref_hist_pct !== null;
+                      if (hasRef) hParts.push(b.ref_hist_pct);
+                      
+                      const expectedLen = hasRef ? 5 : 4;
+                      if (hParts.length === expectedLen && (hParts.reduce((a,v) => a+v, 0)/expectedLen) > 0.70 && Math.min(...hParts) >= 0.60) {
+                        isElite = true;
+                      }
+                    }
 
                     return (
                     <tr key={b.id}>
                       <td style={{ fontSize: 12 }}>{b.match_date}</td>
                       <td style={{ fontWeight: 600, fontSize: 12 }}>{homeTeam} - {awayTeam}</td>
-                      <td style={{ fontSize: 12, fontWeight: 600 }}>{b.bet_name}</td>
+                      <td style={{ fontSize: 12, fontWeight: 600 }}>
+                        {isElite ? <span title="Cecchino Elite" style={{ marginRight: 6 }}>🎯</span> : null}
+                        {b.bet_name}
+                      </td>
                       <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>{b.bet_category}</td>
                       <td>{(b.probability * 100).toFixed(1)}%</td>
                       <td>{b.sportium || '—'}</td>

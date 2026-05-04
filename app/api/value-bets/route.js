@@ -5,7 +5,7 @@ import { EV_AVANZATO, SD_AVANZATO, CV_CALC } from '@/lib/engine';
 import { PROB_BINOM_NEG, PROB_1X2_IBRIDO } from '@/lib/probability';
 import { getCategory, generateCustomMarket, getAllMarkets } from '@/lib/markets';
 import { INDICE_ARBITRO_AVANZATO } from '@/lib/referee';
-import { calcHistorySummary, calcFormSummary } from '@/lib/history';
+import { calcHistorySummary, calcFormSummary, calcFormScore, isSniperElite } from '@/lib/history';
 
 
 
@@ -224,7 +224,8 @@ export async function GET(request) {
             odds_sportbet: mktRow.sportbet || null,
             edge_sportbet: sportbetEdge > -900 ? Math.round(sportbetEdge * 10000) / 10000 : null,
             histScore: hist?.histScore ?? null,
-            formScore: form && form.homeFormPct !== null && form.awayFormPct !== null ? (form.homeFormPct + form.awayFormPct) / 2 : null,
+            formScore: calcFormScore(form),
+            isSniperElite: isSniperElite(hist, form),
             hist,
             form,
             refereeRating: refereeRating,

@@ -178,6 +178,7 @@ function ValueBetsContent() {
                   return (
                   <tr key={`${key}-${i}`} className={hasSelection ? 'row-highlight' : ''} style={{ opacity: bet.inGioco ? 0.38 : 1, pointerEvents: bet.inGioco ? 'none' : 'auto' }}>
                     <td style={{ fontWeight: 600, fontSize: 13, color: 'var(--blue)' }}>
+                      {bet.isSniperElite ? <span title="Cecchino Elite" style={{ marginRight: 6 }}>🎯</span> : null}
                       {bet.matchStr}
                       {bet.inGioco && <span style={{ marginLeft: 6, fontSize: 10, background: 'var(--red)', color: '#fff', padding: '2px 5px', borderRadius: 4, fontWeight: 700, verticalAlign: 'middle' }}>🔴 IN GIOCO</span>}
                     </td>
