@@ -16,9 +16,11 @@ export default function TrackerPage() {
   const [backtestStats, setBacktestStats] = useState({});
   const [minBacktestEdge, setMinBacktestEdge] = useState(0.15);
   const [minBacktestProb, setMinBacktestProb] = useState(0.65);
-  const [minBacktestHist, setMinBacktestHist] = useState(0);   // 0 = nessun filtro
-  const [minBacktestForm, setMinBacktestForm] = useState(0);   // 0 = nessun filtro
-  const [filterEliteOnly, setFilterEliteOnly] = useState(false);
+  const [minOdds, setMinOdds] = useState(0); // 0 = nessun filtro quota
+  const [minHistAvg, setMinHistAvg] = useState(0);
+  const [minHistSingle, setMinHistSingle] = useState(0);
+  const [minFormAvg, setMinFormAvg] = useState(0);
+  const [minFormSingle, setMinFormSingle] = useState(0);
   const [backtestLoading, setBacktestLoading] = useState(false);
   const [backfillLoading, setBackfillLoading] = useState(false);
   const [backfillResult, setBackfillResult] = useState(null);
@@ -159,6 +161,9 @@ export default function TrackerPage() {
     if (b.best_edge < minBacktestEdge) return false;
     if (b.probability < minBacktestProb) return false;
     
+    const maxOdds = Math.max(b.sportium || 0, b.sportbet || 0);
+    if (minOdds > 0 && maxOdds < minOdds) return false;
+    
     // Calcolo Form Score (Media Pura)
     let formScore = null;
     const fParts = [];
@@ -168,32 +173,37 @@ export default function TrackerPage() {
     if (b.form_away_gen_pct !== null) fParts.push(b.form_away_gen_pct);
     if (fParts.length > 0) formScore = fParts.reduce((a,v) => a+v, 0) / fParts.length;
 
-    // Filtro Hist
-    if (minBacktestHist > 0 && (b.hist_score === null || b.hist_score === undefined || b.hist_score < minBacktestHist)) return false;
-    // Filtro Form
-    if (minBacktestForm > 0 && (formScore === null || formScore < minBacktestForm)) return false;
-    
-    // Filtro Elite
-    if (filterEliteOnly) {
-      let isElite = false;
-      if (formScore > 0.70 && fParts.length === 4 && Math.min(...fParts) >= 0.60) {
-        const hParts = [];
-        if (b.home_hist_pct !== null) hParts.push(b.home_hist_pct);
-        if (b.away_hist_pct !== null) hParts.push(b.away_hist_pct);
-        if (b.home_hist_overall_pct !== null) hParts.push(b.home_hist_overall_pct);
-        if (b.away_hist_overall_pct !== null) hParts.push(b.away_hist_overall_pct);
-        
-        const hasRef = b.ref_hist_pct !== null;
-        if (hasRef) hParts.push(b.ref_hist_pct);
-        
-        const expectedLen = hasRef ? 5 : 4;
-        if (hParts.length === expectedLen && (hParts.reduce((a,v) => a+v, 0)/expectedLen) > 0.70 && Math.min(...hParts) >= 0.60) {
-          isElite = true;
-        }
-      }
-      if (!isElite) return false;
+    // Controllo Forma
+    if (minFormAvg > 0) {
+      if (formScore === null || formScore < minFormAvg) return false;
     }
+    if (minFormSingle > 0) {
+      if (fParts.length !== 4) return false; // Serve il campione completo
+      if (Math.min(...fParts) < minFormSingle) return false;
+    }
+
+    // Controllo Hist
+    const hParts = [];
+    if (b.home_hist_pct !== null) hParts.push(b.home_hist_pct);
+    if (b.away_hist_pct !== null) hParts.push(b.away_hist_pct);
+    if (b.home_hist_overall_pct !== null) hParts.push(b.home_hist_overall_pct);
+    if (b.away_hist_overall_pct !== null) hParts.push(b.away_hist_overall_pct);
     
+    const hasRef = b.ref_hist_pct !== null;
+    if (hasRef) hParts.push(b.ref_hist_pct);
+    
+    let histScore = null;
+    if (hParts.length > 0) histScore = hParts.reduce((a,v) => a+v, 0) / hParts.length;
+
+    if (minHistAvg > 0) {
+      if (histScore === null || histScore < minHistAvg) return false;
+    }
+    if (minHistSingle > 0) {
+      const expectedLen = hasRef ? 5 : 4;
+      if (hParts.length !== expectedLen) return false;
+      if (Math.min(...hParts) < minHistSingle) return false;
+    }
+
     return true;
   });
   
@@ -369,19 +379,29 @@ export default function TrackerPage() {
                     <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 55, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(minBacktestProb * 100)} onChange={e => setMinBacktestProb(parseFloat(e.target.value) / 100 || 0)} />
                     <span style={{ fontSize: 14, fontWeight: 600 }}>%</span>
                   </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-secondary)', padding: '6px 16px', borderRadius: 'var(--radius-lg)' }}>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-primary)', textTransform: 'uppercase' }}>Quota Min:</label>
+                    <input type="number" step="0.05" min="1.00" className="input-field" style={{ width: 55, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={minOdds || ''} onChange={e => setMinOdds(parseFloat(e.target.value) || 0)} placeholder="1.00" />
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(16,185,129,0.08)', padding: '6px 16px', borderRadius: 'var(--radius-lg)', border: '1px solid rgba(16,185,129,0.2)' }}>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--green)', textTransform: 'uppercase' }}>Hist% Min:</label>
-                    <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 55, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(minBacktestHist * 100)} onChange={e => setMinBacktestHist(parseFloat(e.target.value) / 100 || 0)} />
+                    <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--green)', textTransform: 'uppercase' }}>Media Hist% Min:</label>
+                    <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 55, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(minHistAvg * 100)} onChange={e => setMinHistAvg(parseFloat(e.target.value) / 100 || 0)} />
+                    <span style={{ fontSize: 14, fontWeight: 600 }}>%</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(16,185,129,0.08)', padding: '6px 16px', borderRadius: 'var(--radius-lg)', border: '1px solid rgba(16,185,129,0.2)' }}>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--green)', textTransform: 'uppercase' }}>Singolo Hist% Min:</label>
+                    <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 55, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(minHistSingle * 100)} onChange={e => setMinHistSingle(parseFloat(e.target.value) / 100 || 0)} />
                     <span style={{ fontSize: 14, fontWeight: 600 }}>%</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(245,158,11,0.08)', padding: '6px 16px', borderRadius: 'var(--radius-lg)', border: '1px solid rgba(245,158,11,0.2)' }}>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--orange, #f59e0b)', textTransform: 'uppercase' }}>Forma% Min:</label>
-                    <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 55, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(minBacktestForm * 100)} onChange={e => setMinBacktestForm(parseFloat(e.target.value) / 100 || 0)} />
+                    <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--orange, #f59e0b)', textTransform: 'uppercase' }}>Media Forma% Min:</label>
+                    <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 55, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(minFormAvg * 100)} onChange={e => setMinFormAvg(parseFloat(e.target.value) / 100 || 0)} />
                     <span style={{ fontSize: 14, fontWeight: 600 }}>%</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: filterEliteOnly ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-secondary)', padding: '6px 16px', borderRadius: 'var(--radius-lg)', border: filterEliteOnly ? '1px solid var(--blue)' : '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s' }} onClick={() => setFilterEliteOnly(!filterEliteOnly)}>
-                    <input type="checkbox" checked={filterEliteOnly} readOnly style={{ cursor: 'pointer' }} />
-                    <label style={{ fontSize: 12, fontWeight: 700, color: filterEliteOnly ? 'var(--blue)' : 'var(--text-secondary)', textTransform: 'uppercase', cursor: 'pointer' }}>🎯 Solo Elite</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(245,158,11,0.08)', padding: '6px 16px', borderRadius: 'var(--radius-lg)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--orange, #f59e0b)', textTransform: 'uppercase' }}>Singolo Forma% Min:</label>
+                    <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 55, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(minFormSingle * 100)} onChange={e => setMinFormSingle(parseFloat(e.target.value) / 100 || 0)} />
+                    <span style={{ fontSize: 14, fontWeight: 600 }}>%</span>
                   </div>
                   <button
                     className="btn btn-secondary btn-sm"
