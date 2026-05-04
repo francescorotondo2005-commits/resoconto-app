@@ -18,6 +18,7 @@ export default function TrackerPage() {
   const [minBacktestProb, setMinBacktestProb] = useState(0.65);
   const [minBacktestHist, setMinBacktestHist] = useState(0);   // 0 = nessun filtro
   const [minBacktestForm, setMinBacktestForm] = useState(0);   // 0 = nessun filtro
+  const [filterEliteOnly, setFilterEliteOnly] = useState(false);
   const [backtestLoading, setBacktestLoading] = useState(false);
   const [backfillLoading, setBackfillLoading] = useState(false);
   const [backfillResult, setBackfillResult] = useState(null);
@@ -157,12 +158,42 @@ export default function TrackerPage() {
   const filteredBacktestBets = backtestBets.filter(b => {
     if (b.best_edge < minBacktestEdge) return false;
     if (b.probability < minBacktestProb) return false;
+    
+    // Calcolo Form Score (Media Pura)
+    let formScore = null;
+    const fParts = [];
+    if (b.form_home_pct !== null) fParts.push(b.form_home_pct);
+    if (b.form_away_pct !== null) fParts.push(b.form_away_pct);
+    if (b.form_home_gen_pct !== null) fParts.push(b.form_home_gen_pct);
+    if (b.form_away_gen_pct !== null) fParts.push(b.form_away_gen_pct);
+    if (fParts.length > 0) formScore = fParts.reduce((a,v) => a+v, 0) / fParts.length;
+
+    // Filtro Hist
     if (minBacktestHist > 0 && (b.hist_score === null || b.hist_score === undefined || b.hist_score < minBacktestHist)) return false;
-    if (minBacktestForm > 0) {
-      if (b.form_home_pct === null || b.form_away_pct === null) return false;
-      const formScore = (b.form_home_pct + b.form_away_pct) / 2;
-      if (formScore < minBacktestForm) return false;
+    // Filtro Form
+    if (minBacktestForm > 0 && (formScore === null || formScore < minBacktestForm)) return false;
+    
+    // Filtro Elite
+    if (filterEliteOnly) {
+      let isElite = false;
+      if (formScore > 0.70 && fParts.length === 4 && Math.min(...fParts) >= 0.60) {
+        const hParts = [];
+        if (b.home_hist_pct !== null) hParts.push(b.home_hist_pct);
+        if (b.away_hist_pct !== null) hParts.push(b.away_hist_pct);
+        if (b.home_hist_overall_pct !== null) hParts.push(b.home_hist_overall_pct);
+        if (b.away_hist_overall_pct !== null) hParts.push(b.away_hist_overall_pct);
+        
+        const hasRef = b.ref_hist_pct !== null;
+        if (hasRef) hParts.push(b.ref_hist_pct);
+        
+        const expectedLen = hasRef ? 5 : 4;
+        if (hParts.length === expectedLen && (hParts.reduce((a,v) => a+v, 0)/expectedLen) > 0.70 && Math.min(...hParts) >= 0.60) {
+          isElite = true;
+        }
+      }
+      if (!isElite) return false;
     }
+    
     return true;
   });
   
@@ -347,6 +378,10 @@ export default function TrackerPage() {
                     <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--orange, #f59e0b)', textTransform: 'uppercase' }}>Forma% Min:</label>
                     <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 55, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(minBacktestForm * 100)} onChange={e => setMinBacktestForm(parseFloat(e.target.value) / 100 || 0)} />
                     <span style={{ fontSize: 14, fontWeight: 600 }}>%</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: filterEliteOnly ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-secondary)', padding: '6px 16px', borderRadius: 'var(--radius-lg)', border: filterEliteOnly ? '1px solid var(--blue)' : '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s' }} onClick={() => setFilterEliteOnly(!filterEliteOnly)}>
+                    <input type="checkbox" checked={filterEliteOnly} readOnly style={{ cursor: 'pointer' }} />
+                    <label style={{ fontSize: 12, fontWeight: 700, color: filterEliteOnly ? 'var(--blue)' : 'var(--text-secondary)', textTransform: 'uppercase', cursor: 'pointer' }}>🎯 Solo Elite</label>
                   </div>
                   <button
                     className="btn btn-secondary btn-sm"
