@@ -16,6 +16,9 @@ function ValueBetsContent() {
   // Combinazioni Elite
   const [eliteCombinations, setEliteCombinations] = useState([]);
   
+  // Filtri
+  const [filterMinOdds, setFilterMinOdds] = useState(false);
+
   // Bet Builder
   const [selectedBets, setSelectedBets] = useState([]);
   
@@ -141,7 +144,20 @@ function ValueBetsContent() {
             <h1 className="page-title">🔮 Scanner Value Bets</h1>
             <p className="page-subtitle">Tutte le opportunità con Edge positivo trovate nelle partite in coda.</p>
           </div>
-          <div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              onClick={() => setFilterMinOdds(v => !v)}
+              style={{
+                padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                cursor: 'pointer', border: '1px solid',
+                borderColor: filterMinOdds ? 'var(--green)' : 'var(--border)',
+                background: filterMinOdds ? 'rgba(16,185,129,0.15)' : 'transparent',
+                color: filterMinOdds ? 'var(--green)' : 'var(--text-muted)',
+                transition: 'all 0.2s',
+              }}
+            >
+              {filterMinOdds ? '✅' : '⬜'} Quota ≥ 1.60
+            </button>
             <button className="btn btn-secondary" onClick={fetchValueBets} disabled={loading}>
               🔄 Aggiorna
             </button>
@@ -182,6 +198,9 @@ function ValueBetsContent() {
                   const isSelectedSportium = selectedBets.some(b => b.selectionKey === `${key}-Sportium`);
                   const isSelectedSportbet = selectedBets.some(b => b.selectionKey === `${key}-Sportbet`);
                   const hasSelection = isSelectedSportium || isSelectedSportbet;
+                  const maxOdds = Math.max(bet.odds_sportium || 0, bet.odds_sportbet || 0);
+                  const belowMinOdds = filterMinOdds && maxOdds < 1.60;
+                  if (belowMinOdds) return null;
                   
                   return (
                   <tr key={`${key}-${i}`} className={hasSelection ? 'row-highlight' : ''} style={{ opacity: bet.inGioco ? 0.38 : 1, pointerEvents: bet.inGioco ? 'none' : 'auto' }}>
