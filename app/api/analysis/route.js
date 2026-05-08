@@ -51,9 +51,25 @@ export async function POST(request) {
 
     // Rating arbitro
     let refereeRating = { falli: 1, cartellini: 1 };
+    let refereeWarning = false;
+    let refereeMatchCount = 0;
+
     if (referee) {
-      refereeRating.falli = INDICE_ARBITRO_AVANZATO(referee, 'falli', matches);
-      refereeRating.cartellini = INDICE_ARBITRO_AVANZATO(referee, 'cartellini', matches);
+      const arbitroLower = referee.toString().trim().toLowerCase();
+      const refereeMatches = matches.filter(r => r.referee && r.referee.toString().trim().toLowerCase() === arbitroLower);
+      refereeMatchCount = refereeMatches.length;
+
+      if (refereeMatchCount < 5) {
+        refereeWarning = true;
+      }
+
+      if (refereeMatchCount === 0) {
+        refereeRating.falli = 1;
+        refereeRating.cartellini = 1;
+      } else {
+        refereeRating.falli = INDICE_ARBITRO_AVANZATO(referee, 'falli', matches);
+        refereeRating.cartellini = INDICE_ARBITRO_AVANZATO(referee, 'cartellini', matches);
+      }
 
       // Applica il moltiplicatore ai valori EV e SD per le statistiche influenzate
       const applyRating = (statKey, rating) => {
@@ -176,6 +192,8 @@ export async function POST(request) {
     return NextResponse.json({
       evsd,
       refereeRating,
+      refereeWarning,
+      refereeMatchCount,
       markets: results,
       settings: { minProb, minEdge, maxProb },
       matchInfo: { league, homeTeam, awayTeam, referee },

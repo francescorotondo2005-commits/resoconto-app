@@ -676,6 +676,11 @@ function AnalysisContent() {
                           <div style={{ fontSize: 13, fontWeight: 700, color: results.refereeRating[stat] > 1 ? 'var(--green)' : results.refereeRating[stat] < 1 ? 'var(--red)' : 'var(--text-primary)' }}>
                             x{results.refereeRating[stat].toFixed(2)}
                           </div>
+                          {results.refereeWarning && (
+                            <div style={{ fontSize: 10, color: 'var(--orange)', marginTop: 4, fontWeight: 600 }}>
+                              ⚠️ Dati insufficienti ({results.refereeMatchCount} match)
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
