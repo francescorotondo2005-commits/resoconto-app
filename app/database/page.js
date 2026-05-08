@@ -33,6 +33,7 @@ export default function DatabasePage() {
 
   const [teams, setTeams] = useState([]);
   const [referees, setReferees] = useState([]);
+  const [pendingMatches, setPendingMatches] = useState([]);
 
   useEffect(() => { 
     loadMatches(); 
@@ -40,7 +41,16 @@ export default function DatabasePage() {
 
   useEffect(() => { 
     loadTeams(); 
+    fetchPendingMatches();
   }, []);
+
+  async function fetchPendingMatches() {
+    try {
+      const res = await fetch('/api/pending-matches');
+      const data = await res.json();
+      setPendingMatches(data.pendingMatches || []);
+    } catch (e) { console.error('Errore pending matches:', e); }
+  }
 
   async function loadTeams() {
     try {
@@ -148,6 +158,16 @@ export default function DatabasePage() {
     setViewMode('add');
   }
 
+  function loadPendingMatchIntoForm(pm) {
+    setForm(prev => ({
+      ...prev,
+      league: pm.league,
+      home_team: pm.home_team,
+      away_team: pm.away_team,
+      referee: pm.referee || ''
+    }));
+  }
+
   async function handleExportDB() {
     setLoading(true);
     try {
@@ -230,6 +250,29 @@ export default function DatabasePage() {
 
         {/* Add Match Form */}
         {viewMode === 'add' && (
+          <>
+            {pendingMatches.length > 0 && !editMatchId && (
+              <div className="card" style={{ marginBottom: 24, padding: 16 }}>
+                <div style={{ fontSize: 13, color: 'var(--accent-primary)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 12 }}>
+                  ⏱️ Compila da Analisi in Pending
+                </div>
+                <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
+                  {pendingMatches.map(pm => (
+                    <button
+                      key={pm.match_key}
+                      className="btn btn-secondary"
+                      style={{ whiteSpace: 'nowrap', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '8px 12px', opacity: pm.in_gioco ? 0.5 : 1 }}
+                      onClick={() => loadPendingMatchIntoForm(pm)}
+                      type="button"
+                    >
+                      <strong style={{ fontSize: 13 }}>{pm.home_team} - {pm.away_team}</strong>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{pm.league} • Arb: {pm.referee || 'N/A'}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h3 style={{ fontSize: 18, fontWeight: 700 }}>
@@ -315,6 +358,7 @@ export default function DatabasePage() {
               </div>
             </form>
           </div>
+          </>
         )}
 
         {/* View DB */}
