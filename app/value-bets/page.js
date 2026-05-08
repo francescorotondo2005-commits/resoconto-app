@@ -178,7 +178,6 @@ function ValueBetsContent() {
                   return (
                   <tr key={`${key}-${i}`} className={hasSelection ? 'row-highlight' : ''} style={{ opacity: bet.inGioco ? 0.38 : 1, pointerEvents: bet.inGioco ? 'none' : 'auto' }}>
                     <td style={{ fontWeight: 600, fontSize: 13, color: 'var(--blue)' }}>
-                      {bet.isSniperElite ? <span title="Cecchino Elite" style={{ marginRight: 6 }}>🎯</span> : null}
                       {bet.matchStr}
                       {bet.inGioco && <span style={{ marginLeft: 6, fontSize: 10, background: 'var(--red)', color: '#fff', padding: '2px 5px', borderRadius: 4, fontWeight: 700, verticalAlign: 'middle' }}>🔴 IN GIOCO</span>}
                     </td>
@@ -469,7 +468,7 @@ function ValueBetsContent() {
         {betModal && (
           <div className="modal-overlay" onClick={() => setBetModal(null)}>
             <div className="modal" onClick={e => e.stopPropagation()}>
-              <h2 className="modal-title">🎯 Conferma Scommessa da Scanner</h2>
+              <h2 className="modal-title">Conferma Scommessa da Scanner</h2>
               <div style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{betModal.bet.matchStr}</div>
                 <div style={{ fontSize: 18, fontWeight: 700, marginTop: 4 }}>{betModal.bet.name}</div>

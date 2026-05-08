@@ -1,0 +1,28 @@
+{
+  "meta": {
+    "completedAt": "2026-05-06T17:29:10.910Z",
+    "elapsedSec": "153.8",
+    "totalTested": 58360112,
+    "prunedBranches": 13513670,
+    "minBets": 10,
+    "minWinRate": 0.8,
+    "minQuota": 1.6
+  },
+  "results": [
+    {
+      "total": 12,
+      "wins": 12,
+      "winRate": 1,
+      "profit": 9.239999999999998,
+      "yieldPct": 0.7699999999999999,
+      "params": {
+        "minEdge": 0.24,
+        "minProb": 0.65,
+        "minHistAvg": 0,
+        "minHistSingle": 0.62,
+        "minFormAvg": 0.75,
+        "minFormSingle": 0
+      }
+    }
+  ]
+}
