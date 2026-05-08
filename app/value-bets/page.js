@@ -11,12 +11,20 @@ function ValueBetsContent() {
   // Modals
   const [betModal, setBetModal] = useState(null);
   const [historyModal, setHistoryModal] = useState(null);
+  const [eliteModal, setEliteModal] = useState(null);
+  
+  // Combinazioni Elite
+  const [eliteCombinations, setEliteCombinations] = useState([]);
   
   // Bet Builder
   const [selectedBets, setSelectedBets] = useState([]);
   
   useEffect(() => {
     fetchValueBets();
+    fetch('/topCombinations.json')
+      .then(res => res.json())
+      .then(data => setEliteCombinations(data.combinations || []))
+      .catch(err => console.error('Error loading top combinations:', err));
   }, []);
 
   async function fetchValueBets() {
@@ -246,13 +254,20 @@ function ValueBetsContent() {
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button 
                            className="btn btn-secondary btn-sm" 
+                           onClick={() => setEliteModal({ bet })}
+                           style={{ padding: '4px 8px', fontSize: 11, background: 'rgba(255, 215, 0, 0.15)', color: 'var(--yellow)', border: '1px solid var(--yellow)' }}>
+                          🎯 Elite
+                        </button>
+                        <button 
+                           className="btn btn-secondary btn-sm" 
                            onClick={() => setHistoryModal({ bet })}
-                           style={{ padding: '4px 10px', fontSize: 11, background: 'rgba(255, 255, 255, 0.05)' }}>
+                           style={{ padding: '4px 8px', fontSize: 11, background: 'rgba(255, 255, 255, 0.05)' }}>
                           📊 Dettagli
                         </button>
                         <button 
                            className="btn btn-success btn-sm" 
-                           onClick={() => setBetModal({ bet, stake: 1 })}>
+                           onClick={() => setBetModal({ bet, stake: 1 })}
+                           style={{ padding: '4px 8px' }}>
                           Gioca
                         </button>
                       </div>
@@ -459,6 +474,124 @@ function ValueBetsContent() {
                 <div className="form-actions" style={{ marginTop: 24, justifyContent: 'flex-end' }}>
                   <button className="btn btn-secondary" onClick={() => setHistoryModal(null)}>Chiudi Dettagli</button>
                 </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Modal Elite Check */}
+        {eliteModal && (() => {
+          const b = eliteModal.bet;
+          const edge = b.edge;
+          const prob = b.probability;
+          
+          let histScore = b.histScore;
+          let hMin = 0;
+          if (b.hist) {
+            const hParts = [];
+            if (b.hist.homePct !== null && b.hist.homePct !== undefined) hParts.push(b.hist.homePct);
+            if (b.hist.awayPct !== null && b.hist.awayPct !== undefined) hParts.push(b.hist.awayPct);
+            if (b.hist.homePctOverall !== null && b.hist.homePctOverall !== undefined) hParts.push(b.hist.homePctOverall);
+            if (b.hist.awayPctOverall !== null && b.hist.awayPctOverall !== undefined) hParts.push(b.hist.awayPctOverall);
+            const hasRef = b.hist.refPct !== null && b.hist.refPct !== undefined;
+            if (hasRef) hParts.push(b.hist.refPct);
+            const hFullLen = hasRef ? 5 : 4;
+            hMin = hParts.length === hFullLen ? Math.min(...hParts) : 0;
+          }
+          
+          let formScore = b.formScore;
+          let fMin = 0;
+          if (b.form) {
+            const fParts = [];
+            if (b.form.homeFormPct !== null && b.form.homeFormPct !== undefined) fParts.push(b.form.homeFormPct);
+            if (b.form.awayFormPct !== null && b.form.awayFormPct !== undefined) fParts.push(b.form.awayFormPct);
+            if (b.form.homeGenFormPct !== null && b.form.homeGenFormPct !== undefined) fParts.push(b.form.homeGenFormPct);
+            if (b.form.awayGenFormPct !== null && b.form.awayGenFormPct !== undefined) fParts.push(b.form.awayGenFormPct);
+            fMin = fParts.length === 4 ? Math.min(...fParts) : 0;
+          }
+
+          const satisfiedCombos = eliteCombinations.filter(c => {
+            const p = c.params;
+            if (edge < p.minEdge || prob < p.minProb) return false;
+            if (histScore === null || histScore < p.minHistAvg) return false;
+            if (p.minHistSingle > 0 && hMin < p.minHistSingle) return false;
+            if (formScore === null || formScore < p.minFormAvg) return false;
+            if (p.minFormSingle > 0 && fMin < p.minFormSingle) return false;
+            return true;
+          });
+
+          return (
+            <div className="modal-overlay" onClick={() => setEliteModal(null)}>
+              <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 700, padding: 24 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                  <h2 className="modal-title" style={{ margin: 0 }}>🎯 Elite Check</h2>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setEliteModal(null)}>Chiudi</button>
+                </div>
+                
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{b.matchStr}</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--blue)' }}>{b.name}</div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8, marginBottom: 24, padding: 12, background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border)', textAlign: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Edge Min</div>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>{(edge * 100).toFixed(1)}%</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Prob Min</div>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>{(prob * 100).toFixed(1)}%</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Media Storico</div>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>{histScore !== null ? (histScore * 100).toFixed(1) + '%' : '—'}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Singolo Storico</div>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>{(hMin * 100).toFixed(1)}%</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Media Forma</div>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>{formScore !== null ? (formScore * 100).toFixed(1) + '%' : '—'}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Singolo Forma</div>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>{(fMin * 100).toFixed(1)}%</div>
+                  </div>
+                </div>
+
+                <h3 style={{ fontSize: 14, marginBottom: 12, color: satisfiedCombos.length > 0 ? 'var(--green)' : 'var(--red)' }}>
+                  {satisfiedCombos.length > 0 ? `✅ Soddisfa ${satisfiedCombos.length} combinazioni Elite` : '❌ Non soddisfa nessuna combinazione Elite'}
+                </h3>
+
+                {satisfiedCombos.length > 0 && (
+                  <div className="table-container" style={{ maxHeight: '40vh', overflowY: 'auto' }}>
+                    <table style={{ fontSize: 12 }}>
+                      <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-card)' }}>
+                        <tr>
+                          <th>WR</th>
+                          <th>Yield</th>
+                          <th>Scommesse</th>
+                          <th>Edge/Prob</th>
+                          <th>Storico (Avg/Sing)</th>
+                          <th>Forma (Avg/Sing)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {satisfiedCombos.map((c, i) => (
+                          <tr key={i}>
+                            <td style={{ fontWeight: 700, color: 'var(--green)' }}>{(c.winRate * 100).toFixed(1)}%</td>
+                            <td>{(c.yieldPct * 100).toFixed(1)}%</td>
+                            <td>{c.total}</td>
+                            <td>{(c.params.minEdge*100).toFixed(0)}% / {(c.params.minProb*100).toFixed(0)}%</td>
+                            <td>{(c.params.minHistAvg*100).toFixed(0)}% / {(c.params.minHistSingle*100).toFixed(0)}%</td>
+                            <td>{(c.params.minFormAvg*100).toFixed(0)}% / {(c.params.minFormSingle*100).toFixed(0)}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           );

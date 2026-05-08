@@ -13,15 +13,15 @@ topResults.sort((a, b) => {
   return b.yieldPct - a.yieldPct;
 });
 
-let markdown = `# Classifica Top 1000 Combinazioni\n\n`;
-markdown += `Di seguito trovi le migliori 1000 configurazioni in assoluto, ordinate rigorosamente per:\n`;
+let markdown = `# Classifica Top 3500 Combinazioni\n\n`;
+markdown += `Di seguito trovi le migliori combinazioni (WinRate >= 80%, Scommesse >= 14, Quota >= 1.60), ordinate rigorosamente per:\n`;
 markdown += `1. **Win Rate** maggiore (fino al 100%)\n`;
 markdown += `2. **Numero di Scommesse** maggiore (a parità di Win Rate)\n`;
 markdown += `3. **ROI (Yield)** maggiore (a parità di Win Rate e Scommesse)\n\n`;
 markdown += `| # | WinRate | Yield | Scommesse | Profitto | Edge Min | Prob Min | Media Storico | Singolo Storico | Media Forma | Singolo Forma |\n`;
 markdown += `|---|---|---|---|---|---|---|---|---|---|---|\n`;
 
-for (let i = 0; i < Math.min(1000, topResults.length); i++) {
+for (let i = 0; i < Math.min(3500, topResults.length); i++) {
   const r = topResults[i];
   const p = r.params;
   
@@ -39,5 +39,6 @@ for (let i = 0; i < Math.min(1000, topResults.length); i++) {
   markdown += `| **${i+1}** | **${wr}** | ${yieldPct} | ${r.total} | ${profit} | ${edge} | ${prob} | ${hAvg} | ${hSng} | ${fAvg} | ${fSng} |\n`;
 }
 
-fs.writeFileSync('top_1000_combinations.md', markdown);
-console.log("File top_1000_combinations.md generato con successo.");
+fs.writeFileSync('topCombinations.md', markdown);
+fs.writeFileSync('public/topCombinations.json', JSON.stringify({ combinations: topResults.slice(0, 3500) }, null, 2));
+console.log(`File aggiornati con ${Math.min(3500, topResults.length)} combinazioni.`);

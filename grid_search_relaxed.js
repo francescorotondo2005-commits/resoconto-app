@@ -1,3 +1,8 @@
+/**
+ * GRID SEARCH FAST — accumula TUTTO in memoria senza evizioni costose,
+ * poi deduplica e taglia alla fine.
+ * Molto più veloce perché non fa sort durante il loop.
+ */
 const fs = require('fs');
 const { createClient } = require('@libsql/client');
 
@@ -7,9 +12,10 @@ const env = fs.readFileSync('.env.local', 'utf8').split('\n').reduce((acc, line)
   return acc;
 }, {});
 
-const MIN_BETS = 10;
-const MIN_WINRATE = 0.75; // relaxed to 75%
+const MIN_BETS = 14;
+const MIN_WINRATE = 0.80;
 const MIN_QUOTA = 1.60;
+const TOP_K = 3500;
 
 function uniqueSortedThresholds(values, minVal = 0, maxVal = 1) {
   const set = new Set([minVal]);
@@ -57,19 +63,22 @@ async function start() {
       formScore, fMin, histScore, hMin });
   }
 
+  console.log(`Bets caricate: ${bets.length}`);
+
   const edgeThresholds   = uniqueSortedThresholds(bets.map(b => b.edge),   0, 0.5);
-  // Relaxing prob down to 50%
   const probThresholds   = uniqueSortedThresholds(bets.map(b => b.prob),   0.50, 1.0);
   const histAvgThresholds  = uniqueSortedThresholds(bets.map(b => b.histScore), 0, 1.0);
   const histSingThresholds = uniqueSortedThresholds([0, ...bets.map(b => b.hMin).filter(v => v !== null)], 0, 1.0);
   const formAvgThresholds  = uniqueSortedThresholds(bets.map(b => b.formScore), 0, 1.0);
   const formSingThresholds = uniqueSortedThresholds([0, ...bets.map(b => b.fMin).filter(v => v !== null)], 0, 1.0);
 
-  const TOP_K = 1000;
-  let topUniqueResults = new Map();
-  let minYieldInTop = -Infinity;
-  
+  console.log(`Soglie: edge(${edgeThresholds.length}) prob(${probThresholds.length}) hAvg(${histAvgThresholds.length}) hSng(${histSingThresholds.length}) fAvg(${formAvgThresholds.length}) fSng(${formSingThresholds.length})`);
+
+  // Accumula tutto in una Map deduplica per (total|wins|profit)
+  // Nessun sort durante il loop — solo alla fine
+  const allResults = new Map();
   let totalTested = 0;
+  const startTime = Date.now();
 
   for (const minEdge of edgeThresholds) {
     const afterEdge = bets.filter(b => b.edge >= minEdge);
@@ -111,18 +120,12 @@ async function start() {
                 const yieldPct = profit / total;
                 const key = `${total}|${wins}|${profit.toFixed(4)}`;
 
-                if (!topUniqueResults.has(key) && (topUniqueResults.size < TOP_K || yieldPct > minYieldInTop)) {
-                  topUniqueResults.set(key, {
+                // Salva solo il primo rappresentante per ogni chiave unica
+                if (!allResults.has(key)) {
+                  allResults.set(key, {
                     total, wins, winRate, profit, yieldPct,
                     params: { minEdge, minProb, minHistAvg, minHistSingle, minFormAvg, minFormSingle }
                   });
-
-                  if (topUniqueResults.size > TOP_K) {
-                    const sorted = Array.from(topUniqueResults.values()).sort((a, b) => b.yieldPct - a.yieldPct || b.winRate - a.winRate);
-                    const toKeep = sorted.slice(0, TOP_K);
-                    topUniqueResults = new Map(toKeep.map(r => [`${r.total}|${r.wins}|${r.profit.toFixed(4)}`, r]));
-                    minYieldInTop = toKeep[toKeep.length - 1].yieldPct;
-                  }
                 }
               }
             }
@@ -132,12 +135,23 @@ async function start() {
     }
   }
 
-  const uniqueCombos = Array.from(topUniqueResults.values());
-  uniqueCombos.sort((a, b) => b.winRate - a.winRate || b.yieldPct - a.yieldPct || b.total - a.total);
-  
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  console.log(`\nCompletato in ${elapsed}s. Testate: ${totalTested.toLocaleString()}, Uniche: ${allResults.size}`);
+
+  // Ordina TUTTO e poi taglia a TOP_K
+  let uniqueCombos = Array.from(allResults.values());
+  uniqueCombos.sort((a, b) => {
+    if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+    if (b.total !== a.total) return b.total - a.total;
+    return b.yieldPct - a.yieldPct;
+  });
+  uniqueCombos = uniqueCombos.slice(0, TOP_K);
+
+  console.log(`Top ${TOP_K}: ${uniqueCombos.length} combinazioni.`);
+
   const output = { results: uniqueCombos };
   fs.writeFileSync('grid_search_results_relaxed.json', JSON.stringify(output, null, 2));
-  console.log(`Finito! Trovate ${uniqueCombos.length} combinazioni.`);
+  console.log('Salvato grid_search_results_relaxed.json');
 }
 
 start().catch(console.error);
