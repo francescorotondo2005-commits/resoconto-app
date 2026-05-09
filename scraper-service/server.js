@@ -239,7 +239,10 @@ app.post('/ml-predict', (req, res) => {
   }
 
   const scriptPath = path.join(PROJECT_DIR, 'ml_predict.py');
-  const args = ['--home', homeTeam, '--away', awayTeam, '--referee', referee || ''];
+  const args = ['--home', homeTeam, '--away', awayTeam];
+  if (referee) {
+    args.push('--referee', referee);
+  }
 
   execFile('python', [scriptPath, ...args], { timeout: 20000, cwd: PROJECT_DIR }, (err, stdout) => {
     if (err) {

@@ -7,6 +7,27 @@ import { getCategory, generateCustomMarket, getAllMarkets } from '@/lib/markets'
 import { INDICE_ARBITRO_AVANZATO } from '@/lib/referee';
 import { calcHistorySummary, calcFormSummary, calcFormScore } from '@/lib/history';
 
+async function getMLPredictions(homeTeam, awayTeam, referee, league) {
+  const SCRAPER_SERVICE_URL = process.env.SCRAPER_SERVICE_URL;
+  if (!SCRAPER_SERVICE_URL) {
+    throw new Error('SCRAPER_SERVICE_URL non configurato in .env.local. Il Machine Learning è disabilitato.');
+  }
+
+  try {
+    const mlUrl = SCRAPER_SERVICE_URL.replace(/\/$/, '') + '/ml-predict';
+    const mlRes = await fetch(mlUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+      body: JSON.stringify({ homeTeam, awayTeam, referee, league }),
+      signal: AbortSignal.timeout(30000)
+    });
+    if (!mlRes.ok) throw new Error(`Risposta negativa dal server ML (${mlRes.status})`);
+    const data = await mlRes.json();
+    return data.predictions || null;
+  } catch (e) {
+    throw new Error(`Impossibile generare le stime ML per ${homeTeam}-${awayTeam}. Assicurati che lo script start.bat sia in esecuzione. Errore: ${e.message}`);
+  }
+}
 
 
 export async function GET(request) {
@@ -53,24 +74,49 @@ export async function GET(request) {
     // Base market references
     const baseMarkets = getAllMarkets();
 
+    // 2. Fetch matches to ensure it is not closed and to do analysis
+    const leaguesNeeded = [...new Set(Object.keys(oddsByMatch).map(k => k.split('|')[0]))];
+    const matchesByLeague = {};
+    for (const l of leaguesNeeded) {
+      const matchesRes = await db.execute({ sql: 'SELECT * FROM matches WHERE league = ?', args: [l] });
+      matchesByLeague[l] = matchesRes.rows;
+    }
+
+    const validMatchKeys = [];
+    const mlPromises = [];
+
     for (const matchKey of Object.keys(oddsByMatch)) {
       const [league, homeTeam, awayTeam] = matchKey.split('|');
       const groupData = oddsByMatch[matchKey];
+      const matches = matchesByLeague[league];
       
-      // 2. Fetch matches to ensure it is not closed and to do analysis
-      const matchesRes = await db.execute({ sql: 'SELECT * FROM matches WHERE league = ?', args: [league] });
-      const matches = matchesRes.rows;
-
-      // Unfinished match validation:
-      // Does a match exist for home vs away with created_at > odds.created_at?
       const matchFinished = matches.some(m => 
         m.home_team === homeTeam && 
         m.away_team === awayTeam && 
         new Date(m.created_at) > new Date(groupData.created_at)
       );
 
-      // If the user already graded it, we skip!
       if (matchFinished) continue;
+      
+      validMatchKeys.push(matchKey);
+      const pendingInfo = pendingMap[matchKey];
+      const matchReferee = pendingInfo?.referee || null;
+      
+      mlPromises.push(
+        getMLPredictions(homeTeam, awayTeam, matchReferee, league).then(preds => ({ matchKey, preds }))
+      );
+    }
+
+    // Await all ML predictions concurrently
+    const mlResults = await Promise.all(mlPromises);
+    const mlPredictionsByMatch = {};
+    for (const r of mlResults) mlPredictionsByMatch[r.matchKey] = r.preds;
+
+    for (const matchKey of validMatchKeys) {
+      const [league, homeTeam, awayTeam] = matchKey.split('|');
+      const groupData = oddsByMatch[matchKey];
+      const matches = matchesByLeague[league];
+      const mlPredictions = mlPredictionsByMatch[matchKey];
 
       // 3. Mathematical Evaluation
       const stats = ['gol', 'tiri', 'tip', 'falli', 'corner', 'cartellini', 'parate'];
@@ -167,8 +213,50 @@ export async function GET(request) {
           probability = PROB_1X2_IBRIDO(evCasa, sdCasa, evOspite, sdOspite, marketDef.esito);
         }
 
-        const fairOdds = probability > 0 ? 1 / probability : 999;
-        const minimumOdds = probability >= minProb ? (1 + minEdge) / probability : null;
+        let fairOdds = probability > 0 ? 1 / probability : 999;
+        let minimumOdds = probability >= minProb ? (1 + minEdge) / probability : null;
+
+        // --- INTEGRAZIONE MACHINE LEARNING ---
+        if (mlPredictions && mlPredictions[marketDef.stat]) {
+          let evMl = null;
+          let cvMl = null, probMl = null, fairOddsMl = null, minOddsMl = null;
+
+          const scope = marketDef.scope === 'casa' ? 'casa' : marketDef.scope === 'ospite' ? 'ospite' : null;
+          if (scope) {
+            evMl = mlPredictions[marketDef.stat][scope];
+          } else if (marketDef.type === 'over_under') {
+            evMl = Math.round((mlPredictions[marketDef.stat].casa + mlPredictions[marketDef.stat].ospite) * 100) / 100;
+          } else if (marketDef.type === '1x2') {
+            evMl = marketDef.esito === '1' ? mlPredictions[marketDef.stat].casa
+                 : marketDef.esito === '2' ? mlPredictions[marketDef.stat].ospite
+                 : Math.round((mlPredictions[marketDef.stat].casa + mlPredictions[marketDef.stat].ospite) / 2 * 100) / 100;
+          }
+
+          if (evMl !== null) {
+            cvMl = CV_CALC(evMl, sd);
+            if (marketDef.type === 'over_under') {
+              probMl = PROB_BINOM_NEG(marketDef.line, evMl, sd, marketDef.direction);
+            } else if (marketDef.type === '1x2') {
+              const evCasaMl = mlPredictions[marketDef.stat].casa;
+              const evOspiteMl = mlPredictions[marketDef.stat].ospite;
+              const sdCasa = evsd[marketDef.stat].casa.sd;
+              const sdOspite = evsd[marketDef.stat].ospite.sd;
+              probMl = PROB_1X2_IBRIDO(evCasaMl, sdCasa, evOspiteMl, sdOspite, marketDef.esito);
+            }
+
+            if (probMl !== null) {
+              fairOddsMl = probMl > 0 ? 1 / probMl : 999;
+              minOddsMl = probMl >= minProb ? (1 + minEdge) / probMl : null;
+            }
+
+            ev = evMl;
+            cv = cvMl;
+            probability = probMl;
+            fairOdds = fairOddsMl;
+            if (minOddsMl !== null) minimumOdds = minOddsMl;
+          }
+        }
+        // -------------------------------------
 
         // Calculate Edge
         const sportiumEdge = mktRow.sportium ? (probability * mktRow.sportium) - 1 : -999;

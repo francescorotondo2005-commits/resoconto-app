@@ -7,23 +7,29 @@ import { getAllMarkets, getCategory, generateCustomMarket } from '@/lib/markets'
 
 // Helper: chiama il scraper-service locale (via ngrok) per le previsioni ML
 // Se SCRAPER_SERVICE_URL non è configurato o il servizio è offline, restituisce null (graceful degradation)
-async function getMLPredictions(homeTeam, awayTeam, referee) {
-  const scraperUrl = process.env.SCRAPER_SERVICE_URL;
-  if (!scraperUrl) return null; // servizio non configurato
+async function getMLPredictions(homeTeam, awayTeam, referee, league) {
+  let mlPredictions = null;
+  const SCRAPER_SERVICE_URL = process.env.SCRAPER_SERVICE_URL;
+  
+  if (!SCRAPER_SERVICE_URL) {
+    throw new Error('SCRAPER_SERVICE_URL non configurato in .env.local. Il Machine Learning è disabilitato.');
+  }
 
   try {
-    const res = await fetch(`${scraperUrl}/ml-predict`, {
+    const mlUrl = SCRAPER_SERVICE_URL.replace(/\/$/, '') + '/ml-predict';
+    const mlRes = await fetch(mlUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
-      body: JSON.stringify({ homeTeam, awayTeam, referee: referee || '' }),
-      signal: AbortSignal.timeout(20000), // 20s timeout
+      body: JSON.stringify({ homeTeam, awayTeam, referee, league }),
+      signal: AbortSignal.timeout(30000)
     });
-    if (!res.ok) return null;
-    const data = await res.json();
+    if (!mlRes.ok) {
+      throw new Error(`Risposta negativa dal server ML (${mlRes.status})`);
+    }
+    const data = await mlRes.json();
     return data.predictions || null;
   } catch (e) {
-    console.warn('[ML] Scraper-service non raggiungibile, EV ML disabilitato:', e.message);
-    return null;
+    throw new Error(`Impossibile generare le stime ML. Assicurati che lo script start.bat sia in esecuzione sul tuo PC locale e che ngrok sia online. Errore: ${e.message}`);
   }
 }
 
@@ -110,7 +116,7 @@ export async function POST(request) {
     }
 
     // Previsioni Machine Learning (Shadow Mode)
-    const mlPredictions = await getMLPredictions(homeTeam, awayTeam, referee);
+    const mlPredictions = await getMLPredictions(homeTeam, awayTeam, referee, league);
 
     // Genera tutte le scommesse con probabilità
     const allMarkets = getAllMarkets();
