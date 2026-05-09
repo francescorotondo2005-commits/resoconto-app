@@ -45,17 +45,18 @@ export default function EliteCombinationsPage() {
     setResult(null);
     const t0 = Date.now();
 
-    // Tenta prima il servizio locale via ngrok (come lo scraper)
-    if (scraperUrl) {
+    const payload = JSON.stringify({ minWinRate: minWinRate / 100, minBets, minQuota, topK });
+    const headers = { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' };
+    const timeout = AbortSignal.timeout(600_000);
+
+    // Costruisce la lista di URL da provare: prima ngrok (se configurato), poi localhost
+    const candidates = [];
+    if (scraperUrl) candidates.push(scraperUrl.replace(/\/$/, '') + '/combo');
+    candidates.push('http://localhost:3001/combo');
+
+    for (const url of candidates) {
       try {
-        const comboUrl = scraperUrl.replace(/\/$/, '') + '/combo';
-        const res = await fetch(comboUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
-          body: JSON.stringify({ minWinRate: minWinRate / 100, minBets, minQuota, topK }),
-          // Timeout lungo: il calcolo può richiedere minuti
-          signal: AbortSignal.timeout(600_000),
-        });
+        const res = await fetch(url, { method: 'POST', headers, body: payload, signal: timeout });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Errore dal servizio locale');
         setResult(data);
@@ -68,15 +69,13 @@ export default function EliteCombinationsPage() {
           setRunning(false);
           return;
         }
-        // Servizio non raggiungibile — mostra avviso specifico
-        setError('⚠️ Servizio locale non raggiungibile. Avvia start.bat nella cartella scraper-service e riprova.');
-        setRunning(false);
-        return;
+        // Questo URL non funziona, prova il prossimo
+        continue;
       }
     }
 
-    // Se nessun URL ngrok configurato, avvisa l'utente
-    setError('⚠️ Configura prima l\'URL del Servizio Scraper nelle Impostazioni, poi avvia start.bat.');
+    // Nessun URL ha risposto
+    setError('⚠️ Servizio locale non raggiungibile. Assicurati che start.bat sia attivo nella cartella scraper-service.');
     setRunning(false);
   }
 
