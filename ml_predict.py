@@ -136,12 +136,17 @@ def predict_batch(matches):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch', help='JSON string with matches list')
+    parser.add_argument('--batch-file', help='Path to JSON file with matches list')
     parser.add_argument('--home')
     parser.add_argument('--away')
     parser.add_argument('--referee', default='')
     args = parser.parse_args()
     
-    if args.batch:
+    if args.batch_file:
+        with open(args.batch_file, 'r', encoding='utf-8') as f:
+            matches = json.load(f)
+        predict_batch(matches)
+    elif args.batch:
         matches = json.loads(args.batch)
         predict_batch(matches)
     elif args.home and args.away:
