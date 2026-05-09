@@ -32,62 +32,62 @@ def get_stat(row, stat_name, is_home):
     return 0
 
 def predict_match(home, away, ref):
-    # Load recent data
-    conn = sqlite3.connect('resoconto.db')
-    query = "SELECT * FROM matches ORDER BY date ASC"
-    df = pd.read_sql_query(query, conn)
-    conn.close()
-    
-    # Pre-calculate rolling averages for home, away, ref
-    home_history = {s: {'for': [], 'against': []} for s in STATS}
-    away_history = {s: {'for': [], 'against': []} for s in STATS}
-    ref_history = {s: [] for s in STATS}
-    
-    for idx, row in df.iterrows():
-        h = row['home_team']
-        a = row['away_team']
-        r = row['referee']
-        
-        for stat in STATS:
-            h_stat = get_stat(row, stat, True)
-            a_stat = get_stat(row, stat, False)
-            
-            if h == home:
-                home_history[stat]['for'].append(h_stat)
-                home_history[stat]['against'].append(a_stat)
-            elif a == home:
-                home_history[stat]['for'].append(a_stat)
-                home_history[stat]['against'].append(h_stat)
-                
-            if h == away:
-                away_history[stat]['for'].append(h_stat)
-                away_history[stat]['against'].append(a_stat)
-            elif a == away:
-                away_history[stat]['for'].append(a_stat)
-                away_history[stat]['against'].append(h_stat)
-                
-            if r == ref and ref is not None:
-                ref_history[stat].append(h_stat + a_stat)
-                
-    def get_avg(lst, n=5):
-        if not lst: return 0 # fallback
-        return float(np.mean(lst[-n:]))
-        
-    features = {}
-    for stat in STATS:
-        features[f'f_home_{stat}_for'] = get_avg(home_history[stat]['for'])
-        features[f'f_home_{stat}_ag'] = get_avg(home_history[stat]['against'])
-        features[f'f_away_{stat}_for'] = get_avg(away_history[stat]['for'])
-        features[f'f_away_{stat}_ag'] = get_avg(away_history[stat]['against'])
-        if stat in ['falli', 'cartellini']:
-            ref_avg = get_avg(ref_history[stat], n=10)
-            if not ref_history[stat]:
-                # fallback se arbitro sconosciuto: media tra le due squadre
-                ref_avg = (get_avg(home_history[stat]['for']) + get_avg(away_history[stat]['for']))
-            features[f'f_ref_{stat}'] = ref_avg
-
     results = {}
     try:
+        # Load recent data - use timeout for concurrent access
+        conn = sqlite3.connect('resoconto.db', timeout=30)
+        query = "SELECT * FROM matches ORDER BY date ASC"
+        df = pd.read_sql_query(query, conn)
+        conn.close()
+        
+        # Pre-calculate rolling averages for home, away, ref
+        home_history = {s: {'for': [], 'against': []} for s in STATS}
+        away_history = {s: {'for': [], 'against': []} for s in STATS}
+        ref_history = {s: [] for s in STATS}
+        
+        for idx, row in df.iterrows():
+            h = row['home_team']
+            a = row['away_team']
+            r = row['referee']
+            
+            for stat in STATS:
+                h_stat = get_stat(row, stat, True)
+                a_stat = get_stat(row, stat, False)
+                
+                if h == home:
+                    home_history[stat]['for'].append(h_stat)
+                    home_history[stat]['against'].append(a_stat)
+                elif a == home:
+                    home_history[stat]['for'].append(a_stat)
+                    home_history[stat]['against'].append(h_stat)
+                    
+                if h == away:
+                    away_history[stat]['for'].append(h_stat)
+                    away_history[stat]['against'].append(a_stat)
+                elif a == away:
+                    away_history[stat]['for'].append(a_stat)
+                    away_history[stat]['against'].append(h_stat)
+                    
+                if r == ref and ref is not None:
+                    ref_history[stat].append(h_stat + a_stat)
+                    
+        def get_avg(lst, n=5):
+            if not lst: return 0 # fallback
+            return float(np.mean(lst[-n:]))
+            
+        features = {}
+        for stat in STATS:
+            features[f'f_home_{stat}_for'] = get_avg(home_history[stat]['for'])
+            features[f'f_home_{stat}_ag'] = get_avg(home_history[stat]['against'])
+            features[f'f_away_{stat}_for'] = get_avg(away_history[stat]['for'])
+            features[f'f_away_{stat}_ag'] = get_avg(away_history[stat]['against'])
+            if stat in ['falli', 'cartellini']:
+                ref_avg = get_avg(ref_history[stat], n=10)
+                if not ref_history[stat]:
+                    # fallback se arbitro sconosciuto: media tra le due squadre
+                    ref_avg = (get_avg(home_history[stat]['for']) + get_avg(away_history[stat]['for']))
+                features[f'f_ref_{stat}'] = ref_avg
+
         for stat in STATS:
             feature_cols = [
                 f'f_home_{stat}_for', f'f_home_{stat}_ag',

@@ -101,16 +101,24 @@ export async function GET(request) {
       validMatchKeys.push(matchKey);
       const pendingInfo = pendingMap[matchKey];
       const matchReferee = pendingInfo?.referee || null;
-      
-      mlPromises.push(
-        getMLPredictions(homeTeam, awayTeam, matchReferee, league).then(preds => ({ matchKey, preds }))
-      );
     }
 
-    // Await all ML predictions concurrently
-    const mlResults = await Promise.all(mlPromises);
+    // Await all ML predictions sequentially to avoid overloading the local PC
     const mlPredictionsByMatch = {};
-    for (const r of mlResults) mlPredictionsByMatch[r.matchKey] = r.preds;
+    for (const matchKey of validMatchKeys) {
+      const [league, homeTeam, awayTeam] = matchKey.split('|');
+      const pendingInfo = pendingMap[matchKey];
+      const matchReferee = pendingInfo?.referee || null;
+      
+      try {
+        const preds = await getMLPredictions(homeTeam, awayTeam, matchReferee, league);
+        mlPredictionsByMatch[matchKey] = preds;
+      } catch (e) {
+        console.error(`ML Predict failed for ${matchKey}:`, e.message);
+        throw e;
+      }
+    }
+
 
     for (const matchKey of validMatchKeys) {
       const [league, homeTeam, awayTeam] = matchKey.split('|');
