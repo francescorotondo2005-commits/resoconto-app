@@ -103,21 +103,43 @@ export async function GET(request) {
       const matchReferee = pendingInfo?.referee || null;
     }
 
-    // Await all ML predictions sequentially to avoid overloading the local PC
+    // Fetch ML Predictions for all valid matches in BATCH mode for extreme speed
     const mlPredictionsByMatch = {};
-    for (const matchKey of validMatchKeys) {
-      const [league, homeTeam, awayTeam] = matchKey.split('|');
-      const pendingInfo = pendingMap[matchKey];
-      const matchReferee = pendingInfo?.referee || null;
-      
+    if (validMatchKeys.length > 0) {
+      const SCRAPER_SERVICE_URL = process.env.SCRAPER_SERVICE_URL;
+      if (!SCRAPER_SERVICE_URL) {
+        throw new Error('SCRAPER_SERVICE_URL non configurato in .env.local.');
+      }
+
+      const batchPayload = validMatchKeys.map(matchKey => {
+        const [league, home, away] = matchKey.split('|');
+        return { home, away, referee: pendingMap[matchKey]?.referee || '', league };
+      });
+
       try {
-        const preds = await getMLPredictions(homeTeam, awayTeam, matchReferee, league);
-        mlPredictionsByMatch[matchKey] = preds;
+        const mlUrl = SCRAPER_SERVICE_URL.replace(/\/$/, '') + '/ml-predict-batch';
+        const mlRes = await fetch(mlUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+          body: JSON.stringify({ matches: batchPayload }),
+          signal: AbortSignal.timeout(60000)
+        });
+
+        if (!mlRes.ok) {
+          throw new Error(`Risposta negativa dal server ML Batch (${mlRes.status})`);
+        }
+
+        const data = await mlRes.json();
+        if (data.success && data.results) {
+          data.results.forEach((preds, idx) => {
+            mlPredictionsByMatch[validMatchKeys[idx]] = preds;
+          });
+        }
       } catch (e) {
-        console.error(`ML Predict failed for ${matchKey}:`, e.message);
-        throw e;
+        throw new Error(`Errore caricamento Batch ML: ${e.message}. Assicurati che lo script start.bat sia in esecuzione.`);
       }
     }
+
 
 
     for (const matchKey of validMatchKeys) {

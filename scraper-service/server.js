@@ -259,6 +259,39 @@ app.post('/ml-predict', (req, res) => {
   });
 });
 
+/**
+ * POST /ml-predict-batch
+ * Body: { matches: [{ home, away, referee }, ...] }
+ */
+app.post('/ml-predict-batch', (req, res) => {
+  const { matches } = req.body || {};
+
+  if (!matches || !Array.isArray(matches)) {
+    return res.status(400).json({ error: 'Campo matches (array) obbligatorio' });
+  }
+
+  const scriptPath = path.join(PROJECT_DIR, 'ml_predict.py');
+  const args = ['--batch', JSON.stringify(matches)];
+
+  execFile('python', [scriptPath, ...args], { 
+    timeout: 60000, 
+    cwd: PROJECT_DIR,
+    maxBuffer: 1024 * 1024 * 10 
+  }, (err, stdout) => {
+    if (err) {
+      console.error('[ML-Batch] Errore:', err.message);
+      return res.status(500).json({ error: 'Errore durante la predizione Batch ML: ' + err.message });
+    }
+    try {
+      const results = JSON.parse(stdout.trim());
+      res.json({ success: true, results });
+    } catch (e) {
+      console.error('[ML-Batch] Errore parsing output:', stdout);
+      res.status(500).json({ error: 'Output ML non valido' });
+    }
+  });
+});
+
 // ── POST /retrain ─────────────────────────────────────────────────────────────
 
 /**
