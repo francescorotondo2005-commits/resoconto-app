@@ -34,7 +34,6 @@ function AnalysisContent() {
   // Sorting state
   const [sortConfig, setSortConfig] = useState({ column: 'defaultOrder', direction: 'asc' });
   const [highlightedRow, setHighlightedRow] = useState(null);
-  const [highlightedRow, setHighlightedRow] = useState(null);
 
   // Odds state
   const [odds, setOdds] = useState({});

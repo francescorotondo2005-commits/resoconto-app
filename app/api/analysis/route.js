@@ -194,9 +194,9 @@ export async function POST(request) {
         probability = PROB_1X2_IBRIDO(evCasa, sdCasa, evOspite, sdOspite, market.esito);
       }
 
-      const fairOdds = probability > 0 ? 1 / probability : 999;
-      const minOdds = probability >= minProb ? (1 + minEdge) / probability : null;
-      const isDiscarded = probability < minProb || probability >= maxProb;
+      let fairOdds = probability > 0 ? 1 / probability : 999;
+      let minOdds = probability >= minProb ? (1 + minEdge) / probability : null;
+      let isDiscarded = probability < minProb || probability >= maxProb;
 
       // EV da Machine Learning e ricalcolo metriche a cascata
       let evMl = null;
@@ -234,6 +234,7 @@ export async function POST(request) {
             minOddsMl = probMl >= minProb ? (1 + minEdge) / probMl : null;
             isDiscardedMl = probMl < minProb || probMl >= maxProb;
           }
+        }
         // Se ML è disponibile, sostituiamo le metriche classiche con quelle dell'Intelligenza Artificiale.
         // Questo rende il Machine Learning il motore "Dominante" dell'app.
         if (evMl !== null) ev = evMl;
