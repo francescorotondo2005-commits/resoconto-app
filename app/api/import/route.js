@@ -115,7 +115,18 @@ export async function POST(request) {
       console.error('Error cleaning pending matches automatically:', e);
     }
 
-    return NextResponse.json({ success: true, results });
+    // Trigger auto-retrain del modello ML (fire-and-forget, non blocca l'import)
+    const scraperUrl = process.env.SCRAPER_SERVICE_URL;
+    if (scraperUrl) {
+      fetch(`${scraperUrl}/retrain`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+      }).then(r => r.json())
+        .then(d => console.log('[ML Auto-Retrain] Avviato:', d.message))
+        .catch(e => console.warn('[ML Auto-Retrain] Servizio non raggiungibile:', e.message));
+    }
+
+    return NextResponse.json({ success: true, results, retrainTriggered: !!scraperUrl });
   } catch (error) {
     console.error('Import error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

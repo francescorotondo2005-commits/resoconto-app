@@ -28,6 +28,7 @@ export default function DatabasePage() {
   const [toast, setToast] = useState(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [retraining, setRetraining] = useState(false);
   const [viewMode, setViewMode] = useState('add'); // 'add' | 'view' | 'import'
   const [editMatchId, setEditMatchId] = useState(null);
 
@@ -224,6 +225,23 @@ export default function DatabasePage() {
        URL.revokeObjectURL(url);
     } catch (e) { setToast({ type: 'error', message: e.message }); }
     setLoading(false);
+  }
+
+  async function handleRetrain() {
+    setRetraining(true);
+    setToast({ type: 'success', message: '🤖 Re-training avviato in background... (~30 secondi)' });
+    try {
+      const res = await fetch('/api/ml-retrain', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setToast({ type: 'success', message: '🤖 ' + data.message });
+      } else {
+        setToast({ type: 'error', message: data.message || 'Servizio ML non disponibile' });
+      }
+    } catch (e) {
+      setToast({ type: 'error', message: 'Impossibile contattare il servizio ML: ' + e.message });
+    }
+    setRetraining(false);
   }
 
   function handleCancelEdit() {
@@ -438,8 +456,30 @@ export default function DatabasePage() {
                     </span>
                   </div>
                 ))}
+                {importResult.retrainTriggered && (
+                  <div style={{ marginTop: 12, padding: 10, background: 'rgba(99,102,241,0.1)', borderRadius: 8, fontSize: 13, color: 'var(--accent-primary)' }}>
+                    🤖 Re-training dei modelli ML avviato automaticamente in background.
+                  </div>
+                )}
               </div>
             )}
+
+            {/* Pulsante Riallena Modelli ML */}
+            <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>🤖 Riallena Modelli Machine Learning</h4>
+              <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 12 }}>
+                Forza il re-training manuale dei 14 modelli ML (7 statistiche × Casa/Ospite) usando tutti i dati presenti nel database.
+                Utile dopo ogni aggiornamento del DB. Dura circa 30 secondi.
+              </p>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleRetrain}
+                disabled={retraining}
+                style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+              >
+                {retraining ? <><span className="loading-spinner" /> Re-training in corso...</> : '🔄 Riallena Modelli ML'}
+              </button>
+            </div>
           </div>
         )}
 

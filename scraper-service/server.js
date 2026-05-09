@@ -224,6 +224,79 @@ app.post('/combo', async (req, res) => {
   }
 });
 
+// ── POST /ml-predict ─────────────────────────────────────────────────────────
+
+/**
+ * POST /ml-predict
+ * Body: { homeTeam, awayTeam, referee }
+ * Esegue ml_predict.py e restituisce le previsioni ML in JSON.
+ */
+app.post('/ml-predict', (req, res) => {
+  const { homeTeam, awayTeam, referee } = req.body || {};
+
+  if (!homeTeam || !awayTeam) {
+    return res.status(400).json({ error: 'homeTeam e awayTeam sono obbligatori' });
+  }
+
+  const scriptPath = path.join(PROJECT_DIR, 'ml_predict.py');
+  const args = ['--home', homeTeam, '--away', awayTeam, '--referee', referee || ''];
+
+  execFile('python', [scriptPath, ...args], { timeout: 20000, cwd: PROJECT_DIR }, (err, stdout) => {
+    if (err) {
+      console.error('[ML] Errore ml_predict.py:', err.message);
+      return res.status(500).json({ error: 'Errore durante la predizione ML: ' + err.message });
+    }
+    try {
+      const predictions = JSON.parse(stdout.trim());
+      res.json({ success: true, predictions });
+    } catch (e) {
+      console.error('[ML] Errore parsing output:', stdout);
+      res.status(500).json({ error: 'Output ML non valido' });
+    }
+  });
+});
+
+// ── POST /retrain ─────────────────────────────────────────────────────────────
+
+/**
+ * POST /retrain
+ * Esegue ml_train_all.py in background (fire-and-forget) e risponde subito.
+ * Impedisce esecuzioni parallele.
+ */
+app.post('/retrain', (req, res) => {
+  if (app.locals.retrainRunning) {
+    return res.json({ success: false, message: 'Re-training già in corso. Attendi che finisca.' });
+  }
+
+  app.locals.retrainRunning = true;
+  console.log('\n[ML] ── Avvio re-training modelli ──');
+
+  const scriptPath = path.join(PROJECT_DIR, 'ml_train_all.py');
+
+  execFile('python', [scriptPath], { timeout: 300000, cwd: PROJECT_DIR }, (err, stdout) => {
+    app.locals.retrainRunning = false;
+    if (err) {
+      console.error('[ML] Errore re-training:', err.message);
+    } else {
+      console.log('[ML] ── Re-training completato ──\n');
+      console.log(stdout);
+    }
+  });
+
+  // Risponde subito senza aspettare il termine
+  res.json({ success: true, message: 'Re-training avviato in background (~30 secondi). I nuovi modelli saranno attivi al termine.' });
+});
+
+// ── GET /retrain/status ───────────────────────────────────────────────────────
+
+/**
+ * GET /retrain/status
+ * Indica se il re-training è attualmente in corso.
+ */
+app.get('/retrain/status', (req, res) => {
+  res.json({ running: !!app.locals.retrainRunning });
+});
+
 // ── Avvio server ──────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {

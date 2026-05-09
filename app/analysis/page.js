@@ -34,6 +34,7 @@ function AnalysisContent() {
   // Sorting state
   const [sortConfig, setSortConfig] = useState({ column: 'defaultOrder', direction: 'asc' });
   const [highlightedRow, setHighlightedRow] = useState(null);
+  const [mlMode, setMlMode] = useState(false); // Toggle Shadow ML mode
 
   // Odds state
   const [odds, setOdds] = useState({});
@@ -703,6 +704,25 @@ function AnalysisContent() {
                 <input type="checkbox" checked={showOnlyValue} onChange={e => setShowOnlyValue(e.target.checked)} style={{ width: 'auto', marginRight: 6 }} />
                 Solo Value Bet
               </label>
+              {/* ML Mode Toggle */}
+              <label style={{ marginLeft: '12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>🤖 Modalità IA</span>
+                <div
+                  onClick={() => setMlMode(v => !v)}
+                  style={{
+                    width: 40, height: 22, borderRadius: 11, cursor: 'pointer',
+                    background: mlMode ? 'var(--accent-primary)' : 'var(--border)',
+                    position: 'relative', transition: 'background 0.2s',
+                    flexShrink: 0,
+                  }}
+                >
+                  <div style={{
+                    position: 'absolute', top: 3, left: mlMode ? 20 : 3,
+                    width: 16, height: 16, borderRadius: '50%',
+                    background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                  }} />
+                </div>
+              </label>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
                 <button className="btn btn-danger btn-sm" onClick={() => clearOdds('sportbet')} disabled={Object.keys(odds).length === 0} style={{ opacity: 0.8, outline: '1px solid currentColor' }}>
                   🗑️ Cancella Solo Sportbet
@@ -721,6 +741,9 @@ function AnalysisContent() {
                     <th onClick={() => handleSort('defaultOrder')} style={{ cursor: 'pointer' }}>Scommessa <SorterIcon column="defaultOrder" /></th>
                     <th onClick={() => handleSort('category')} style={{ cursor: 'pointer' }}>Cat. <SorterIcon column="category" /></th>
                     <th onClick={() => handleSort('ev')} style={{ cursor: 'pointer' }}>EV <SorterIcon column="ev" /></th>
+                    {results?.mlPredictions && (
+                      <th style={{ color: 'var(--accent-primary)', whiteSpace: 'nowrap' }}>🤖 EV (ML)</th>
+                    )}
                     <th onClick={() => handleSort('sd')} style={{ cursor: 'pointer' }}>SD <SorterIcon column="sd" /></th>
                     <th onClick={() => handleSort('cv')} style={{ cursor: 'pointer' }}>CV <SorterIcon column="cv" /></th>
                     <th onClick={() => handleSort('probability')} style={{ cursor: 'pointer' }}>Prob. <SorterIcon column="probability" /></th>
@@ -747,6 +770,23 @@ function AnalysisContent() {
                         </td>
                         <td><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{m.category}</span></td>
                         <td>{m.ev}</td>
+                        {results?.mlPredictions && (
+                          <td>
+                            {m.evMl !== null && m.evMl !== undefined ? (() => {
+                              const diff = m.evMl - m.ev;
+                              const pct = m.ev > 0 ? Math.abs(diff / m.ev) : 0;
+                              const color = diff > 0.5 ? 'var(--green)' : diff < -0.5 ? 'var(--red)' : 'var(--text-primary)';
+                              return (
+                                <span style={{ color, fontWeight: pct > 0.15 ? 700 : 400, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  {m.evMl}
+                                  {pct > 0.15 && (
+                                    <span style={{ fontSize: 9, opacity: 0.8 }}>{diff > 0 ? '▲' : '▼'}</span>
+                                  )}
+                                </span>
+                              );
+                            })() : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                          </td>
+                        )}
                         <td>{m.sd}</td>
                         <td>{(m.cv * 100).toFixed(0)}%</td>
                         <td style={{ fontWeight: 600 }}>{(m.probability * 100).toFixed(1)}%</td>

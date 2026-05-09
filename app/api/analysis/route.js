@@ -5,6 +5,28 @@ import { PROB_BINOM_NEG, PROB_1X2_IBRIDO } from '@/lib/probability';
 import { INDICE_ARBITRO_AVANZATO } from '@/lib/referee';
 import { getAllMarkets, getCategory, generateCustomMarket } from '@/lib/markets';
 
+// Helper: chiama il scraper-service locale (via ngrok) per le previsioni ML
+// Se SCRAPER_SERVICE_URL non è configurato o il servizio è offline, restituisce null (graceful degradation)
+async function getMLPredictions(homeTeam, awayTeam, referee) {
+  const scraperUrl = process.env.SCRAPER_SERVICE_URL;
+  if (!scraperUrl) return null; // servizio non configurato
+
+  try {
+    const res = await fetch(`${scraperUrl}/ml-predict`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+      body: JSON.stringify({ homeTeam, awayTeam, referee: referee || '' }),
+      signal: AbortSignal.timeout(20000), // 20s timeout
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.predictions || null;
+  } catch (e) {
+    console.warn('[ML] Scraper-service non raggiungibile, EV ML disabilitato:', e.message);
+    return null;
+  }
+}
+
 export async function POST(request) {
   try {
     const { league, homeTeam, awayTeam, referee } = await request.json();
@@ -86,6 +108,9 @@ export async function POST(request) {
       applyRating('falli', refereeRating.falli);
       applyRating('cartellini', refereeRating.cartellini);
     }
+
+    // Previsioni Machine Learning (Shadow Mode)
+    const mlPredictions = await getMLPredictions(homeTeam, awayTeam, referee);
 
     // Genera tutte le scommesse con probabilità
     const allMarkets = getAllMarkets();
@@ -173,11 +198,28 @@ export async function POST(request) {
       const minOdds = probability >= minProb ? (1 + minEdge) / probability : null;
       const isDiscarded = probability < minProb || probability >= maxProb;
 
+      // EV da Machine Learning
+      let evMl = null;
+      if (mlPredictions && mlPredictions[market.stat]) {
+        const scope = market.scope === 'casa' ? 'casa' : market.scope === 'ospite' ? 'ospite' : null;
+        if (scope) {
+          evMl = mlPredictions[market.stat][scope];
+        } else if (market.type === 'over_under') {
+          // totale: somma casa + ospite
+          evMl = Math.round((mlPredictions[market.stat].casa + mlPredictions[market.stat].ospite) * 100) / 100;
+        } else if (market.type === '1x2') {
+          evMl = market.esito === '1' ? mlPredictions[market.stat].casa
+               : market.esito === '2' ? mlPredictions[market.stat].ospite
+               : Math.round((mlPredictions[market.stat].casa + mlPredictions[market.stat].ospite) / 2 * 100) / 100;
+        }
+      }
+
       results.push({
         name: market.name,
         category: getCategory(market.stat),
         type: market.type,
         ev: Math.round(ev * 100) / 100,
+        evMl: evMl !== null ? Math.round(evMl * 100) / 100 : null,
         sd: Math.round(sd * 100) / 100,
         cv: Math.round(cv * 100) / 100,
         probability: Math.round(probability * 10000) / 10000,
@@ -191,6 +233,7 @@ export async function POST(request) {
 
     return NextResponse.json({
       evsd,
+      mlPredictions,
       refereeRating,
       refereeWarning,
       refereeMatchCount,
