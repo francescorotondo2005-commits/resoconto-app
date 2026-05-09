@@ -134,7 +134,7 @@ export default function EliteCombinationsPage() {
 
             {running && (
               <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                Questo può richiedere 1-3 minuti. Non chiudere la pagina.
+                Questo può richiedere 3-5 minuti. Non chiudere la pagina.
               </div>
             )}
 
