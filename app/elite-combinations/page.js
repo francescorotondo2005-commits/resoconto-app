@@ -15,6 +15,9 @@ export default function EliteCombinationsPage() {
   const [elapsed, setElapsed]   = useState(null);
 
   const [scraperUrl, setScraperUrl] = useState('');
+  const [combinations, setCombinations] = useState([]);
+  const [lastGenerated, setLastGenerated] = useState(null);
+  const [loadingFile, setLoadingFile] = useState(true);
 
   // Carica l'URL ngrok dalle impostazioni (lo stesso del servizio scraper)
   useEffect(() => {
