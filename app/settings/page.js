@@ -140,6 +140,25 @@ export default function SettingsPage() {
               </button>
             </div>
 
+            {/* Scraper Service URL */}
+            <div className="card">
+              <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20 }}>🔗 Servizio Scraper (Local/Ngrok)</h3>
+              <div className="input-group">
+                <label>Ngrok URL / Localhost URL</label>
+                <input type="text" value={settings.scraper_url || ''}
+                  onChange={e => handleChange('scraper_url', e.target.value)}
+                  placeholder="https://xxxx-xxxx.ngrok-free.app" />
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                  {settings.scraper_url 
+                    ? '✅ Servizio configurato'
+                    : '⚠️ Non configurato — le funzioni IA e Elite non funzioneranno'}
+                </span>
+              </div>
+              <button className="btn btn-primary" onClick={() => saveSettings({ scraper_url: settings.scraper_url })}>
+                Salva URL Scraper
+              </button>
+            </div>
+
             {/* DB Stats */}
             {settings.db_stats && (
               <div className="card">

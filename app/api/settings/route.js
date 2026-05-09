@@ -15,6 +15,11 @@ export async function GET() {
     const apiKey = settings.api_football_key || process.env.API_FOOTBALL_KEY || '';
     settings.api_football_configured = apiKey && apiKey !== 'YOUR_API_KEY_HERE';
 
+    // Include scraper URL fallback from ENV
+    if (!settings.scraper_url) {
+      settings.scraper_url = process.env.SCRAPER_SERVICE_URL || '';
+    }
+
     // DB stats
     const matchCount = await db.execute('SELECT COUNT(*) as count FROM matches');
     const betCount = await db.execute('SELECT COUNT(*) as count FROM bets');
