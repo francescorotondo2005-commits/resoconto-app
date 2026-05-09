@@ -34,7 +34,7 @@ function AnalysisContent() {
   // Sorting state
   const [sortConfig, setSortConfig] = useState({ column: 'defaultOrder', direction: 'asc' });
   const [highlightedRow, setHighlightedRow] = useState(null);
-  const [mlMode, setMlMode] = useState(false); // Toggle Shadow ML mode
+  const [highlightedRow, setHighlightedRow] = useState(null);
 
   // Odds state
   const [odds, setOdds] = useState({});
@@ -649,9 +649,9 @@ function AnalysisContent() {
                         <div style={{ textAlign: 'center', flex: 1 }}>
                           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>🏠 {homeTeam}</div>
                           <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
-                            {mlMode && results.mlPredictions ? results.mlPredictions[stat]?.casa?.toFixed(2) ?? '—' : s.casa.ev.toFixed(2)}
+                            {s.casa.ev.toFixed(2)}
                           </div>
-                          {!mlMode && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>(±{s.casa.sd.toFixed(2)})</div>}
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>(±{s.casa.sd.toFixed(2)})</div>
                         </div>
                         
                         <div style={{ width: 1, background: 'var(--border)', margin: '0 8px' }} />
@@ -659,9 +659,9 @@ function AnalysisContent() {
                         <div style={{ textAlign: 'center', flex: 1 }}>
                           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>✈️ {awayTeam}</div>
                           <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
-                            {mlMode && results.mlPredictions ? results.mlPredictions[stat]?.ospite?.toFixed(2) ?? '—' : s.ospite.ev.toFixed(2)}
+                            {s.ospite.ev.toFixed(2)}
                           </div>
-                          {!mlMode && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>(±{s.ospite.sd.toFixed(2)})</div>}
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>(±{s.ospite.sd.toFixed(2)})</div>
                         </div>
                       </div>
 
@@ -670,25 +670,10 @@ function AnalysisContent() {
                           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Totale</div>
                           <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>
                             <strong style={{ color: 'var(--blue)' }}>
-                              {mlMode && results.mlPredictions ? (results.mlPredictions[stat]?.casa + results.mlPredictions[stat]?.ospite)?.toFixed(2) ?? '—' : s.totale.ev.toFixed(2)}
+                              {s.totale.ev.toFixed(2)}
                             </strong> 
-                            {!mlMode && <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 4 }}>(±{s.totale.sd.toFixed(2)})</span>}
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 4 }}>(±{s.totale.sd.toFixed(2)})</span>
                           </div>
-                        </div>
-                      )}
-
-                      {/* Info Arbitro per Falli e Cartellini (nascosta in modalità ML) */}
-                      {!mlMode && results.matchInfo?.referee && (stat === 'falli' || stat === 'cartellini') && (
-                        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 10, textAlign: 'center', background: 'var(--bg-secondary)', borderRadius: 6, padding: 8 }}>
-                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Moltiplicatore Arbitro</div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: results.refereeRating[stat] > 1 ? 'var(--green)' : results.refereeRating[stat] < 1 ? 'var(--red)' : 'var(--text-primary)' }}>
-                            x{results.refereeRating[stat].toFixed(2)}
-                          </div>
-                          {results.refereeWarning && (
-                            <div style={{ fontSize: 10, color: 'var(--orange)', marginTop: 4, fontWeight: 600 }}>
-                              ⚠️ Dati insufficienti ({results.refereeMatchCount} match)
-                            </div>
-                          )}
                         </div>
                       )}
                     </div>
@@ -711,25 +696,6 @@ function AnalysisContent() {
                 <input type="checkbox" checked={showOnlyValue} onChange={e => setShowOnlyValue(e.target.checked)} style={{ width: 'auto', marginRight: 6 }} />
                 Solo Value Bet
               </label>
-              {/* ML Mode Toggle */}
-              <label style={{ marginLeft: '12px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>🤖 Modalità IA</span>
-                <div
-                  onClick={() => setMlMode(v => !v)}
-                  style={{
-                    width: 40, height: 22, borderRadius: 11, cursor: 'pointer',
-                    background: mlMode ? 'var(--accent-primary)' : 'var(--border)',
-                    position: 'relative', transition: 'background 0.2s',
-                    flexShrink: 0,
-                  }}
-                >
-                  <div style={{
-                    position: 'absolute', top: 3, left: mlMode ? 20 : 3,
-                    width: 16, height: 16, borderRadius: '50%',
-                    background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
-                  }} />
-                </div>
-              </label>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
                 <button className="btn btn-danger btn-sm" onClick={() => clearOdds('sportbet')} disabled={Object.keys(odds).length === 0} style={{ opacity: 0.8, outline: '1px solid currentColor' }}>
                   🗑️ Cancella Solo Sportbet
@@ -747,12 +713,9 @@ function AnalysisContent() {
                   <tr>
                     <th onClick={() => handleSort('defaultOrder')} style={{ cursor: 'pointer' }}>Scommessa <SorterIcon column="defaultOrder" /></th>
                     <th onClick={() => handleSort('category')} style={{ cursor: 'pointer' }}>Cat. <SorterIcon column="category" /></th>
-                    <th onClick={() => handleSort(mlMode ? 'evMl' : 'ev')} style={{ cursor: 'pointer', color: mlMode ? 'var(--accent-primary)' : 'inherit' }}>
-                      {mlMode ? '🤖 EV (ML)' : 'EV'} <SorterIcon column={mlMode ? 'evMl' : 'ev'} />
+                    <th onClick={() => handleSort('ev')} style={{ cursor: 'pointer', color: 'var(--accent-primary)' }}>
+                      🤖 EV (ML) <SorterIcon column="ev" />
                     </th>
-                    {!mlMode && results?.mlPredictions && (
-                      <th style={{ color: 'var(--accent-primary)', whiteSpace: 'nowrap' }}>🤖 EV (ML)</th>
-                    )}
                     <th onClick={() => handleSort('sd')} style={{ cursor: 'pointer' }}>SD <SorterIcon column="sd" /></th>
                     <th onClick={() => handleSort('cv')} style={{ cursor: 'pointer' }}>CV <SorterIcon column="cv" /></th>
                     <th onClick={() => handleSort('probability')} style={{ cursor: 'pointer' }}>Prob. <SorterIcon column="probability" /></th>
@@ -766,56 +729,31 @@ function AnalysisContent() {
                 </thead>
                 <tbody>
                   {displayMarkets.map((m, i) => {
-                    const activeEv = mlMode && m.evMl !== null ? m.evMl : m.ev;
-                    const activeProb = mlMode && m.probMl !== null ? m.probMl : m.probability;
-                    const activeCv = mlMode && m.cvMl !== null ? m.cvMl : m.cv;
-                    const activeMinOdds = mlMode && m.minOddsMl !== null ? m.minOddsMl : m.minOdds;
-                    const isDiscarded = mlMode ? m.isDiscardedMl : m.isDiscarded;
-                    const bestEdge = getBestEdge(m.name, activeProb);
+                    const bestEdge = getBestEdge(m.name, m.probability);
                     const isHighlighted = highlightedRow === m.name;
-
-                    // Indicator for diff between Classic and ML EV
-                    let mlIndicator = null;
-                    if (m.evMl !== null && !mlMode) {
-                      const diff = m.evMl - m.ev;
-                      const pct = m.ev > 0 ? Math.abs(diff / m.ev) : 0;
-                      if (pct > 0.15) {
-                        mlIndicator = <span style={{ fontSize: 9, opacity: 0.8, marginLeft: 4 }}>{diff > 0 ? '▲' : '▼'}</span>;
-                      }
-                    }
 
                     return (
                       <tr 
                         key={m.name} 
-                        style={{ opacity: isDiscarded ? 0.4 : 1 }}
+                        style={{ opacity: m.isDiscarded ? 0.4 : 1 }}
                         className={isHighlighted ? 'row-highlight' : ''}
                       >
                         <td style={{ fontWeight: 600, fontSize: 12 }}>
                           {m.name} {m.isCustom && <span style={{ color: 'var(--blue)', fontSize: 10 }}>(Custom)</span>}
                         </td>
                         <td><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{m.category}</span></td>
-                        <td style={{ fontWeight: 700, color: activeEv > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                          {activeEv !== null ? activeEv.toFixed(2) : '—'}
+                        <td style={{ fontWeight: 700, color: m.ev > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                          {m.ev !== null ? m.ev.toFixed(2) : '—'}
                         </td>
-                        {!mlMode && results?.mlPredictions && (
-                          <td>
-                            {m.evMl !== null && m.evMl !== undefined ? (
-                              <span style={{ color: m.evMl - m.ev > 0.5 ? 'var(--green)' : m.evMl - m.ev < -0.5 ? 'var(--red)' : 'var(--text-primary)', fontWeight: Math.abs((m.evMl - m.ev)/m.ev) > 0.15 ? 700 : 400, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                {m.evMl}
-                                {mlIndicator}
-                              </span>
-                            ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
-                          </td>
-                        )}
                         <td>{m.sd.toFixed(2)}</td>
                         <td>
-                          <span className={`badge ${activeCv < 0.5 ? 'badge-value' : activeCv > 1.0 ? 'badge-discard' : ''}`}>
-                            {activeCv !== null ? (activeCv * 100).toFixed(0) + '%' : '—'}
+                          <span className={`badge ${m.cv < 0.5 ? 'badge-value' : m.cv > 1.0 ? 'badge-discard' : ''}`}>
+                            {m.cv !== null ? (m.cv * 100).toFixed(0) + '%' : '—'}
                           </span>
                         </td>
-                        <td style={{ fontWeight: 600 }}>{activeProb !== null ? (activeProb * 100).toFixed(1) + '%' : '—'}</td>
+                        <td style={{ fontWeight: 600 }}>{m.probability !== null ? (m.probability * 100).toFixed(1) + '%' : '—'}</td>
                         <td style={{ fontWeight: 600, color: 'var(--accent-secondary)' }}>
-                          {activeMinOdds || '—'}
+                          {m.minOdds || '—'}
                         </td>
                         <td style={{ position: 'relative' }}>
                           {!m.isDiscarded && (

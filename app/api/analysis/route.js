@@ -234,7 +234,14 @@ export async function POST(request) {
             minOddsMl = probMl >= minProb ? (1 + minEdge) / probMl : null;
             isDiscardedMl = probMl < minProb || probMl >= maxProb;
           }
-        }
+        // Se ML è disponibile, sostituiamo le metriche classiche con quelle dell'Intelligenza Artificiale.
+        // Questo rende il Machine Learning il motore "Dominante" dell'app.
+        if (evMl !== null) ev = evMl;
+        if (cvMl !== null) cv = cvMl;
+        if (probMl !== null) probability = probMl;
+        if (fairOddsMl !== null) fairOdds = fairOddsMl;
+        if (minOddsMl !== null) minOdds = minOddsMl;
+        if (mlPredictions && mlPredictions[market.stat]) isDiscarded = isDiscardedMl;
       }
 
       results.push({
@@ -248,18 +255,20 @@ export async function POST(request) {
         fairOdds: Math.round(fairOdds * 100) / 100,
         minOdds: minOdds ? Math.round(minOdds * 100) / 100 : null,
         isDiscarded,
-        
-        // ML Stats
-        evMl: evMl !== null ? Math.round(evMl * 100) / 100 : null,
-        cvMl: cvMl !== null ? Math.round(cvMl * 100) / 100 : null,
-        probMl: probMl !== null ? Math.round(probMl * 10000) / 10000 : null,
-        fairOddsMl: fairOddsMl !== null ? Math.round(fairOddsMl * 100) / 100 : null,
-        minOddsMl: minOddsMl ? Math.round(minOddsMl * 100) / 100 : null,
-        isDiscardedMl,
-
         defaultOrder: market.defaultOrder,
         isCustom: market.isCustom || false,
       });
+    }
+
+    // Sostituiamo anche le stime EV globali per farle visualizzare nelle schede in alto
+    if (mlPredictions) {
+      for (const stat of Object.keys(evsd)) {
+        if (mlPredictions[stat]) {
+          if (evsd[stat].casa) evsd[stat].casa.ev = mlPredictions[stat].casa;
+          if (evsd[stat].ospite) evsd[stat].ospite.ev = mlPredictions[stat].ospite;
+          if (evsd[stat].totale) evsd[stat].totale.ev = mlPredictions[stat].casa + mlPredictions[stat].ospite;
+        }
+      }
     }
 
     return NextResponse.json({
