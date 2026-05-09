@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDb, getSetting } from '@/lib/db';
 import * as XLSX from 'xlsx';
 
 // POST - Import data from uploaded Excel file
@@ -116,9 +116,11 @@ export async function POST(request) {
     }
 
     // Trigger auto-retrain del modello ML (fire-and-forget, non blocca l'import)
-    const scraperUrl = process.env.SCRAPER_SERVICE_URL;
+    const dbScraperUrl = await getSetting('scraper_url');
+    const scraperUrl = dbScraperUrl || process.env.SCRAPER_SERVICE_URL;
     if (scraperUrl) {
-      fetch(`${scraperUrl}/retrain`, {
+      const targetUrl = scraperUrl.replace(/\/$/, '') + '/retrain';
+      fetch(targetUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
       }).then(r => r.json())
