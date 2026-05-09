@@ -12,10 +12,18 @@ const env = fs.readFileSync('.env.local', 'utf8').split('\n').reduce((acc, line)
   return acc;
 }, {});
 
-const MIN_BETS = 14;
-const MIN_WINRATE = 0.80;
-const MIN_QUOTA = 1.60;
-const TOP_K = 3500;
+let MIN_BETS = 14;
+let MIN_WINRATE = 0.80;
+let MIN_QUOTA = 1.60;
+let TOP_K = 5000;
+
+const args = process.argv.slice(2);
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === '--minWinRate') MIN_WINRATE = parseFloat(args[++i]);
+  if (args[i] === '--minBets') MIN_BETS = parseInt(args[++i], 10);
+  if (args[i] === '--minQuota') MIN_QUOTA = parseFloat(args[++i]);
+  if (args[i] === '--topK') TOP_K = parseInt(args[++i], 10);
+}
 
 function uniqueSortedThresholds(values, minVal = 0, maxVal = 1) {
   const set = new Set([minVal]);

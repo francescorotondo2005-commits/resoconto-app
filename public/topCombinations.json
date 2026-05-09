@@ -1,5 +1,5 @@
 {
-  "results": [
+  "combinations": [
     {
       "total": 16,
       "wins": 15,
@@ -12900,5 +12900,6 @@
         "minFormSingle": 0
       }
     }
-  ]
+  ],
+  "generatedAt": "2026-05-09T19:01:40.163Z"
 }
