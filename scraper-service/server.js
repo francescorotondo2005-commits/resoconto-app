@@ -6,6 +6,7 @@
  *
  * Endpoint:
  *   POST /scrape   - Avvia scraping per una partita
+ *   POST /combo    - Avvia grid search + genera file combinazioni + git push
  *   GET  /health   - Verifica che il servizio sia attivo
  *
  * Avvio: node server.js  (o tramite start.bat)
@@ -14,6 +15,12 @@
 
 import 'dotenv/config';
 import express from 'express';
+import { execFile } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PROJECT_DIR = path.resolve(__dirname, '..');
 
 // Importa il modulo scraper e il db dalla cartella lib del progetto principale
 import { scrapeBothBooks } from '../lib/scraper.js';
@@ -148,6 +155,73 @@ app.post('/scrape', async (req, res) => {
     errors: scrapeResult.errors,
     scrapedAt: scrapeResult.scrapedAt,
   });
+});
+
+// ── POST /combo ───────────────────────────────────────────────────────────────
+
+/**
+ * POST /combo
+ * Body: { minWinRate?, minBets?, minQuota? }  (opzionali, usano i default dello script)
+ * Esegue grid_search_relaxed.js → generate_md_1000.js → git push
+ * e risponde con il risultato finale.
+ */
+app.post('/combo', async (req, res) => {
+  // Impedisce esecuzioni parallele
+  if (app.locals.comboRunning) {
+    return res.status(429).json({ error: 'Calcolo già in corso. Attendi che finisca.' });
+  }
+
+  app.locals.comboRunning = true;
+  const startTime = Date.now();
+  console.log('\n[Combo] ── Avvio aggiornamento combinazioni Elite ──');
+
+  const run = (script) => new Promise((resolve, reject) => {
+    const child = execFile('node', [path.join(PROJECT_DIR, script)], { cwd: PROJECT_DIR }, (err, stdout, stderr) => {
+      if (err) return reject(new Error(stderr || err.message));
+      resolve(stdout);
+    });
+    child.stdout?.on('data', d => process.stdout.write('[Combo] ' + d));
+    child.stderr?.on('data', d => process.stderr.write('[Combo] ' + d));
+  });
+
+  const gitPush = () => new Promise((resolve, reject) => {
+    execFile('git', ['add', 'public/topCombinations.json', 'topCombinations.md', 'grid_search_results_relaxed.json'], { cwd: PROJECT_DIR }, (err) => {
+      if (err) return reject(err);
+      execFile('git', ['commit', '-m', 'chore: Aggiornamento automatico combinazioni Elite'], { cwd: PROJECT_DIR }, () => {
+        // commit potrebbe fallire se non ci sono diff (nessun problema)
+        execFile('git', ['push'], { cwd: PROJECT_DIR }, (pushErr, stdout, stderr) => {
+          if (pushErr) return reject(new Error(stderr || pushErr.message));
+          resolve(stdout);
+        });
+      });
+    });
+  });
+
+  try {
+    console.log('[Combo] 1/3 Grid Search...');
+    await run('grid_search_relaxed.js');
+
+    console.log('[Combo] 2/3 Generazione file...');
+    await run('generate_md_1000.js');
+
+    console.log('[Combo] 3/3 Git push...');
+    await gitPush();
+
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`[Combo] ── Completato in ${elapsed}s ──\n`);
+
+    res.json({
+      success: true,
+      message: `Aggiornamento completato in ${elapsed}s. Le combinazioni saranno live su Vercel tra ~1 minuto.`,
+      elapsed,
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error('[Combo] ERRORE:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  } finally {
+    app.locals.comboRunning = false;
+  }
 });
 
 // ── Avvio server ──────────────────────────────────────────────────────────────

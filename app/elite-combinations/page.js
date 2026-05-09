@@ -14,9 +14,15 @@ export default function EliteCombinationsPage() {
   const [error, setError]       = useState(null);
   const [elapsed, setElapsed]   = useState(null);
 
-  const [combinations, setCombinations] = useState([]);
-  const [loadingFile, setLoadingFile]   = useState(true);
-  const [lastGenerated, setLastGenerated] = useState(null);
+  const [scraperUrl, setScraperUrl] = useState('');
+
+  // Carica l'URL ngrok dalle impostazioni (lo stesso del servizio scraper)
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(r => r.json())
+      .then(data => setScraperUrl(data.scraper_url || ''))
+      .catch(() => {});
+  }, []);
 
   // Carica il file JSON esistente all'avvio
   useEffect(() => {
@@ -36,26 +42,39 @@ export default function EliteCombinationsPage() {
     setResult(null);
     const t0 = Date.now();
 
-    try {
-      const res = await fetch('/api/elite-combinations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          minWinRate: minWinRate / 100,
-          minBets,
-          minQuota,
-          topK,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Errore sconosciuto');
-      setResult(data);
-      setElapsed(((Date.now() - t0) / 1000).toFixed(1));
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setRunning(false);
+    // Tenta prima il servizio locale via ngrok (come lo scraper)
+    if (scraperUrl) {
+      try {
+        const comboUrl = scraperUrl.replace(/\/$/, '') + '/combo';
+        const res = await fetch(comboUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+          body: JSON.stringify({ minWinRate: minWinRate / 100, minBets, minQuota, topK }),
+          // Timeout lungo: il calcolo può richiedere minuti
+          signal: AbortSignal.timeout(600_000),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Errore dal servizio locale');
+        setResult(data);
+        setElapsed(((Date.now() - t0) / 1000).toFixed(1));
+        setRunning(false);
+        return;
+      } catch (e) {
+        if (e.name === 'AbortError' || e.name === 'TimeoutError') {
+          setError('Timeout: il calcolo ha impiegato troppo. Riprova.');
+          setRunning(false);
+          return;
+        }
+        // Servizio non raggiungibile — mostra avviso specifico
+        setError('⚠️ Servizio locale non raggiungibile. Avvia start.bat nella cartella scraper-service e riprova.');
+        setRunning(false);
+        return;
+      }
     }
+
+    // Se nessun URL ngrok configurato, avvisa l'utente
+    setError('⚠️ Configura prima l\'URL del Servizio Scraper nelle Impostazioni, poi avvia start.bat.');
+    setRunning(false);
   }
 
   const pct  = v => `${(v * 100).toFixed(1)}%`;
