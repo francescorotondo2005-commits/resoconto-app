@@ -216,6 +216,19 @@ export async function POST(request) {
       console.error('Error grading pending bets', e);
     }
 
+    // 3. Trigger auto-retrain del modello ML (fire-and-forget)
+    const dbScraperUrl = await getSetting('scraper_url');
+    const scraperUrl = dbScraperUrl || process.env.SCRAPER_SERVICE_URL;
+    if (scraperUrl) {
+      const targetUrl = scraperUrl.replace(/\/$/, '') + '/retrain';
+      fetch(targetUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+      }).then(r => r.json())
+        .then(d => console.log('[ML Auto-Retrain POST] Avviato:', d.message))
+        .catch(e => console.warn('[ML Auto-Retrain POST] Errore:', e.message));
+    }
+
     return NextResponse.json({ id: Number(stmt.lastInsertRowid), success: true });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -290,6 +303,19 @@ export async function PATCH(request) {
       await evaluateBetsRelatedToMatch(db, descKey);
     } catch (e) {
       console.error('Error regrading bets on PATCH', e);
+    }
+
+    // Trigger auto-retrain del modello ML (fire-and-forget)
+    const dbScraperUrl = await getSetting('scraper_url');
+    const scraperUrl = dbScraperUrl || process.env.SCRAPER_SERVICE_URL;
+    if (scraperUrl) {
+      const targetUrl = scraperUrl.replace(/\/$/, '') + '/retrain';
+      fetch(targetUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+      }).then(r => r.json())
+        .then(d => console.log('[ML Auto-Retrain PATCH] Avviato:', d.message))
+        .catch(e => console.warn('[ML Auto-Retrain PATCH] Errore:', e.message));
     }
 
     return NextResponse.json({ success: true });
