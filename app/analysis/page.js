@@ -648,16 +648,20 @@ function AnalysisContent() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                         <div style={{ textAlign: 'center', flex: 1 }}>
                           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>🏠 {homeTeam}</div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{s.casa.ev.toFixed(2)}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>(±{s.casa.sd.toFixed(2)})</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {mlMode && results.mlPredictions ? results.mlPredictions[stat]?.casa?.toFixed(2) ?? '—' : s.casa.ev.toFixed(2)}
+                          </div>
+                          {!mlMode && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>(±{s.casa.sd.toFixed(2)})</div>}
                         </div>
                         
                         <div style={{ width: 1, background: 'var(--border)', margin: '0 8px' }} />
 
                         <div style={{ textAlign: 'center', flex: 1 }}>
                           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>✈️ {awayTeam}</div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{s.ospite.ev.toFixed(2)}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>(±{s.ospite.sd.toFixed(2)})</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {mlMode && results.mlPredictions ? results.mlPredictions[stat]?.ospite?.toFixed(2) ?? '—' : s.ospite.ev.toFixed(2)}
+                          </div>
+                          {!mlMode && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>(±{s.ospite.sd.toFixed(2)})</div>}
                         </div>
                       </div>
 
@@ -665,13 +669,16 @@ function AnalysisContent() {
                         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 10, textAlign: 'center' }}>
                           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Totale</div>
                           <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>
-                            <strong style={{ color: 'var(--blue)' }}>{s.totale.ev.toFixed(2)}</strong> <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>(±{s.totale.sd.toFixed(2)})</span>
+                            <strong style={{ color: 'var(--blue)' }}>
+                              {mlMode && results.mlPredictions ? (results.mlPredictions[stat]?.casa + results.mlPredictions[stat]?.ospite)?.toFixed(2) ?? '—' : s.totale.ev.toFixed(2)}
+                            </strong> 
+                            {!mlMode && <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 4 }}>(±{s.totale.sd.toFixed(2)})</span>}
                           </div>
                         </div>
                       )}
 
-                      {/* Info Arbitro per Falli e Cartellini */}
-                      {results.matchInfo?.referee && (stat === 'falli' || stat === 'cartellini') && (
+                      {/* Info Arbitro per Falli e Cartellini (nascosta in modalità ML) */}
+                      {!mlMode && results.matchInfo?.referee && (stat === 'falli' || stat === 'cartellini') && (
                         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 10, textAlign: 'center', background: 'var(--bg-secondary)', borderRadius: 6, padding: 8 }}>
                           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Moltiplicatore Arbitro</div>
                           <div style={{ fontSize: 13, fontWeight: 700, color: results.refereeRating[stat] > 1 ? 'var(--green)' : results.refereeRating[stat] < 1 ? 'var(--red)' : 'var(--text-primary)' }}>
@@ -740,8 +747,10 @@ function AnalysisContent() {
                   <tr>
                     <th onClick={() => handleSort('defaultOrder')} style={{ cursor: 'pointer' }}>Scommessa <SorterIcon column="defaultOrder" /></th>
                     <th onClick={() => handleSort('category')} style={{ cursor: 'pointer' }}>Cat. <SorterIcon column="category" /></th>
-                    <th onClick={() => handleSort('ev')} style={{ cursor: 'pointer' }}>EV <SorterIcon column="ev" /></th>
-                    {results?.mlPredictions && (
+                    <th onClick={() => handleSort(mlMode ? 'evMl' : 'ev')} style={{ cursor: 'pointer', color: mlMode ? 'var(--accent-primary)' : 'inherit' }}>
+                      {mlMode ? '🤖 EV (ML)' : 'EV'} <SorterIcon column={mlMode ? 'evMl' : 'ev'} />
+                    </th>
+                    {!mlMode && results?.mlPredictions && (
                       <th style={{ color: 'var(--accent-primary)', whiteSpace: 'nowrap' }}>🤖 EV (ML)</th>
                     )}
                     <th onClick={() => handleSort('sd')} style={{ cursor: 'pointer' }}>SD <SorterIcon column="sd" /></th>
@@ -757,41 +766,56 @@ function AnalysisContent() {
                 </thead>
                 <tbody>
                   {displayMarkets.map((m, i) => {
-                    const bestEdge = getBestEdge(m.name, m.probability);
+                    const activeEv = mlMode && m.evMl !== null ? m.evMl : m.ev;
+                    const activeProb = mlMode && m.probMl !== null ? m.probMl : m.probability;
+                    const activeCv = mlMode && m.cvMl !== null ? m.cvMl : m.cv;
+                    const activeMinOdds = mlMode && m.minOddsMl !== null ? m.minOddsMl : m.minOdds;
+                    const isDiscarded = mlMode ? m.isDiscardedMl : m.isDiscarded;
+                    const bestEdge = getBestEdge(m.name, activeProb);
                     const isHighlighted = highlightedRow === m.name;
+
+                    // Indicator for diff between Classic and ML EV
+                    let mlIndicator = null;
+                    if (m.evMl !== null && !mlMode) {
+                      const diff = m.evMl - m.ev;
+                      const pct = m.ev > 0 ? Math.abs(diff / m.ev) : 0;
+                      if (pct > 0.15) {
+                        mlIndicator = <span style={{ fontSize: 9, opacity: 0.8, marginLeft: 4 }}>{diff > 0 ? '▲' : '▼'}</span>;
+                      }
+                    }
+
                     return (
                       <tr 
                         key={m.name} 
-                        style={{ opacity: m.isDiscarded ? 0.4 : 1 }}
+                        style={{ opacity: isDiscarded ? 0.4 : 1 }}
                         className={isHighlighted ? 'row-highlight' : ''}
                       >
                         <td style={{ fontWeight: 600, fontSize: 12 }}>
                           {m.name} {m.isCustom && <span style={{ color: 'var(--blue)', fontSize: 10 }}>(Custom)</span>}
                         </td>
                         <td><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{m.category}</span></td>
-                        <td>{m.ev}</td>
-                        {results?.mlPredictions && (
+                        <td style={{ fontWeight: 700, color: activeEv > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                          {activeEv !== null ? activeEv.toFixed(2) : '—'}
+                        </td>
+                        {!mlMode && results?.mlPredictions && (
                           <td>
-                            {m.evMl !== null && m.evMl !== undefined ? (() => {
-                              const diff = m.evMl - m.ev;
-                              const pct = m.ev > 0 ? Math.abs(diff / m.ev) : 0;
-                              const color = diff > 0.5 ? 'var(--green)' : diff < -0.5 ? 'var(--red)' : 'var(--text-primary)';
-                              return (
-                                <span style={{ color, fontWeight: pct > 0.15 ? 700 : 400, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                  {m.evMl}
-                                  {pct > 0.15 && (
-                                    <span style={{ fontSize: 9, opacity: 0.8 }}>{diff > 0 ? '▲' : '▼'}</span>
-                                  )}
-                                </span>
-                              );
-                            })() : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                            {m.evMl !== null && m.evMl !== undefined ? (
+                              <span style={{ color: m.evMl - m.ev > 0.5 ? 'var(--green)' : m.evMl - m.ev < -0.5 ? 'var(--red)' : 'var(--text-primary)', fontWeight: Math.abs((m.evMl - m.ev)/m.ev) > 0.15 ? 700 : 400, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                {m.evMl}
+                                {mlIndicator}
+                              </span>
+                            ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                           </td>
                         )}
-                        <td>{m.sd}</td>
-                        <td>{(m.cv * 100).toFixed(0)}%</td>
-                        <td style={{ fontWeight: 600 }}>{(m.probability * 100).toFixed(1)}%</td>
+                        <td>{m.sd.toFixed(2)}</td>
+                        <td>
+                          <span className={`badge ${activeCv < 0.5 ? 'badge-value' : activeCv > 1.0 ? 'badge-discard' : ''}`}>
+                            {activeCv !== null ? (activeCv * 100).toFixed(0) + '%' : '—'}
+                          </span>
+                        </td>
+                        <td style={{ fontWeight: 600 }}>{activeProb !== null ? (activeProb * 100).toFixed(1) + '%' : '—'}</td>
                         <td style={{ fontWeight: 600, color: 'var(--accent-secondary)' }}>
-                          {m.minOdds || '—'}
+                          {activeMinOdds || '—'}
                         </td>
                         <td style={{ position: 'relative' }}>
                           {!m.isDiscarded && (

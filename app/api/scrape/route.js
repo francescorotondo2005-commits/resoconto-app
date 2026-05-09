@@ -31,7 +31,7 @@ import { scrapeBothBooks } from '@/lib/scraper';
 import { getDb, getSetting } from '@/lib/db';
 
 // Next.js App Router: indica il timeout massimo della route (in secondi).
-export const maxDuration = 90;
+export const maxDuration = 120; // 120s max (sarà cappato a 60s sul piano Hobby)
 
 // Forza l'esecuzione in Node.js runtime (Playwright non funziona sull'Edge runtime)
 export const runtime = 'nodejs';
@@ -45,7 +45,7 @@ async function proxyToScraperService(scraperUrl, body) {
   console.log(`[/api/scrape] Proxy → ${url}`);
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 85_000); // 85s max
+  const timeoutId = setTimeout(() => controller.abort(), 110_000); // 110s max
 
   try {
     const res = await fetch(url, {
@@ -107,22 +107,24 @@ export async function POST(request) {
     } catch (e) {
       console.error('[/api/scrape] Errore proxy scraper service:', e);
 
-      // Controlla se il servizio locale non è avviato
-      const isConnectionError = e.message?.includes('fetch') || e.name === 'AbortError';
-      const hint = isConnectionError
-        ? ' — Assicurati che scraper-service/start.bat sia in esecuzione sul tuo PC!'
-        : '';
+      // Controlla se il servizio locale non è avviato o è andato in timeout
+      const isAbort = e.name === 'AbortError' || e.message?.includes('aborted');
+      const isConnectionError = e.message?.includes('fetch') && !isAbort;
+      
+      const errorMessage = isAbort 
+        ? 'Scraping richiede più tempo del previsto (timeout Vercel). Il processo sta continuando in background sul tuo PC. Controlla i risultati nello Scanner tra poco.'
+        : `Scraper service non raggiungibile: ${e.message}${isConnectionError ? ' — Assicurati che scraper-service/start.bat sia in esecuzione sul tuo PC!' : ''}`;
 
       return NextResponse.json(
         {
           success: false,
-          error: `Scraper service non raggiungibile: ${e.message}${hint}`,
+          error: errorMessage,
           odds: {},
           valueBets: [],
           errors: [e.message],
           scrapedAt: new Date().toISOString(),
         },
-        { status: 503 }
+        { status: isAbort ? 202 : 503 } // 202 Accepted se il processo in background continua
       );
     }
   }

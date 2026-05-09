@@ -198,8 +198,10 @@ export async function POST(request) {
       const minOdds = probability >= minProb ? (1 + minEdge) / probability : null;
       const isDiscarded = probability < minProb || probability >= maxProb;
 
-      // EV da Machine Learning
+      // EV da Machine Learning e ricalcolo metriche a cascata
       let evMl = null;
+      let cvMl = null, probMl = null, fairOddsMl = null, minOddsMl = null, isDiscardedMl = isDiscarded;
+
       if (mlPredictions && mlPredictions[market.stat]) {
         const scope = market.scope === 'casa' ? 'casa' : market.scope === 'ospite' ? 'ospite' : null;
         if (scope) {
@@ -212,6 +214,27 @@ export async function POST(request) {
                : market.esito === '2' ? mlPredictions[market.stat].ospite
                : Math.round((mlPredictions[market.stat].casa + mlPredictions[market.stat].ospite) / 2 * 100) / 100;
         }
+
+        if (evMl !== null) {
+          cvMl = CV_CALC(evMl, sd);
+          
+          if (market.type === 'over_under') {
+            probMl = PROB_BINOM_NEG(market.line, evMl, sd, market.direction);
+          } else if (market.type === '1x2') {
+            // Per 1x2 ML, ricalcoliamo la probabilità usando le previsioni ML di casa e ospite
+            const evCasaMl = mlPredictions[market.stat].casa;
+            const evOspiteMl = mlPredictions[market.stat].ospite;
+            const sdCasa = evsd[market.stat].casa.sd;
+            const sdOspite = evsd[market.stat].ospite.sd;
+            probMl = PROB_1X2_IBRIDO(evCasaMl, sdCasa, evOspiteMl, sdOspite, market.esito);
+          }
+
+          if (probMl !== null) {
+            fairOddsMl = probMl > 0 ? 1 / probMl : 999;
+            minOddsMl = probMl >= minProb ? (1 + minEdge) / probMl : null;
+            isDiscardedMl = probMl < minProb || probMl >= maxProb;
+          }
+        }
       }
 
       results.push({
@@ -219,13 +242,21 @@ export async function POST(request) {
         category: getCategory(market.stat),
         type: market.type,
         ev: Math.round(ev * 100) / 100,
-        evMl: evMl !== null ? Math.round(evMl * 100) / 100 : null,
         sd: Math.round(sd * 100) / 100,
         cv: Math.round(cv * 100) / 100,
         probability: Math.round(probability * 10000) / 10000,
         fairOdds: Math.round(fairOdds * 100) / 100,
         minOdds: minOdds ? Math.round(minOdds * 100) / 100 : null,
         isDiscarded,
+        
+        // ML Stats
+        evMl: evMl !== null ? Math.round(evMl * 100) / 100 : null,
+        cvMl: cvMl !== null ? Math.round(cvMl * 100) / 100 : null,
+        probMl: probMl !== null ? Math.round(probMl * 10000) / 10000 : null,
+        fairOddsMl: fairOddsMl !== null ? Math.round(fairOddsMl * 100) / 100 : null,
+        minOddsMl: minOddsMl ? Math.round(minOddsMl * 100) / 100 : null,
+        isDiscardedMl,
+
         defaultOrder: market.defaultOrder,
         isCustom: market.isCustom || false,
       });
