@@ -14215,7 +14215,7 @@
         "minEdge": 0.24,
         "minProb": 0.73,
         "minHistAvg": 0,
-        "minHistSingle": 0.35,
+        "minHistSingle": 0.34,
         "minFormAvg": 0.75,
         "minFormSingle": 0
       }
@@ -45495,6 +45495,5 @@
         "minFormSingle": 0.6
       }
     }
-  ],
-  "generatedAt": "2026-05-08T21:14:01.969Z"
+  ]
 }
