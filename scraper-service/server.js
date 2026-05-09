@@ -250,7 +250,12 @@ app.post('/ml-predict', (req, res) => {
       return res.status(500).json({ error: 'Errore durante la predizione ML: ' + err.message });
     }
     try {
-      const predictions = JSON.parse(stdout.trim());
+      const raw = JSON.parse(stdout.trim());
+      // ml_predict.py in batch mode sempre restituisce un array — unwrap il primo elemento
+      const predictions = Array.isArray(raw) ? raw[0] : raw;
+      if (!predictions || predictions.error) {
+        return res.status(500).json({ error: predictions?.error || 'Output ML non valido' });
+      }
       res.json({ success: true, predictions });
     } catch (e) {
       console.error('[ML] Errore parsing output:', stdout);
