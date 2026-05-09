@@ -99,16 +99,14 @@ export async function POST(request) {
         refereeRating.cartellini = INDICE_ARBITRO_AVANZATO(referee, 'cartellini', matches);
       }
 
-      // Applica il moltiplicatore ai valori EV e SD per le statistiche influenzate
+      // Applica il moltiplicatore SOLO all'EV classico (per la visualizzazione),
+      // NON alla SD — la SD pura viene usata nel calcolo ML (l'arbitro è già nelle feature del modello)
       const applyRating = (statKey, rating) => {
         if (!evsd[statKey]) return;
         evsd[statKey].casa.ev *= rating;
-        evsd[statKey].casa.sd *= rating;
         evsd[statKey].ospite.ev *= rating;
-        evsd[statKey].ospite.sd *= rating;
         evsd[statKey].totale.ev *= rating;
-        evsd[statKey].totale.sd *= rating;
-        // Il CV (sd/ev) rimane matematicamente invariato
+        // SD: non modificata — il ML usa la SD pura come deviazione della distribuzione storica
       };
 
       applyRating('falli', refereeRating.falli);

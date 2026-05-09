@@ -182,12 +182,11 @@ export async function GET(request) {
 
         const applyRating = (statKey, rating) => {
           if (!evsd[statKey]) return;
+          // Applica SOLO all'EV classico — la SD rimane pura per il calcolo ML
+          // (l'arbitro è già nelle feature del modello Python)
           evsd[statKey].casa.ev *= rating;
-          evsd[statKey].casa.sd *= rating;
           evsd[statKey].ospite.ev *= rating;
-          evsd[statKey].ospite.sd *= rating;
           evsd[statKey].totale.ev *= rating;
-          evsd[statKey].totale.sd *= rating;
         };
 
         applyRating('falli', refFalli);
