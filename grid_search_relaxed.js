@@ -17,11 +17,12 @@ const MIN_WINRATE = 0.80;
 const MIN_QUOTA = 1.60;
 const TOP_K = 3500;
 
-function uniqueSortedThresholds(values, minVal = 0, maxVal = 1) {
+function uniqueSortedThresholds(values, step = 0.01, minVal = 0, maxVal = 1) {
   const set = new Set([minVal]);
+  const factor = 1 / step;
   for (const v of values) {
     if (v !== null && v !== undefined) {
-      set.add(Math.round(v * 100) / 100);
+      set.add(Math.round(v * factor) / factor);
     }
   }
   return Array.from(set).filter(v => v >= minVal && v <= maxVal).sort((a,b) => a-b);
@@ -65,12 +66,12 @@ async function start() {
 
   console.log(`Bets caricate: ${bets.length}`);
 
-  const edgeThresholds   = uniqueSortedThresholds(bets.map(b => b.edge),   0, 0.5);
-  const probThresholds   = uniqueSortedThresholds(bets.map(b => b.prob),   0.50, 1.0);
-  const histAvgThresholds  = uniqueSortedThresholds(bets.map(b => b.histScore), 0, 1.0);
-  const histSingThresholds = uniqueSortedThresholds([0, ...bets.map(b => b.hMin).filter(v => v !== null)], 0, 1.0);
-  const formAvgThresholds  = uniqueSortedThresholds(bets.map(b => b.formScore), 0, 1.0);
-  const formSingThresholds = uniqueSortedThresholds([0, ...bets.map(b => b.fMin).filter(v => v !== null)], 0, 1.0);
+  const edgeThresholds     = uniqueSortedThresholds(bets.map(b => b.edge),   0.02, 0, 0.5);
+  const probThresholds     = uniqueSortedThresholds(bets.map(b => b.prob),   0.05, 0.50, 1.0);
+  const histAvgThresholds  = uniqueSortedThresholds(bets.map(b => b.histScore), 0.05, 0, 1.0);
+  const histSingThresholds = uniqueSortedThresholds([0, ...bets.map(b => b.hMin).filter(v => v !== null)], 0.05, 0, 1.0);
+  const formAvgThresholds  = uniqueSortedThresholds(bets.map(b => b.formScore), 0.10, 0, 1.0);
+  const formSingThresholds = uniqueSortedThresholds([0, ...bets.map(b => b.fMin).filter(v => v !== null)], 0.10, 0, 1.0);
 
   console.log(`Soglie: edge(${edgeThresholds.length}) prob(${probThresholds.length}) hAvg(${histAvgThresholds.length}) hSng(${histSingThresholds.length}) fAvg(${formAvgThresholds.length}) fSng(${formSingThresholds.length})`);
 
