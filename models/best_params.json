@@ -1,0 +1,52 @@
+{
+  "gol": {
+    "model_type": "rf",
+    "mae": 0.9171,
+    "n_estimators": 382,
+    "max_depth": 5,
+    "min_samples_leaf": 4
+  },
+  "tiri": {
+    "model_type": "rf",
+    "mae": 3.6534,
+    "n_estimators": 249,
+    "max_depth": 4,
+    "min_samples_leaf": 20
+  },
+  "tip": {
+    "model_type": "rf",
+    "mae": 1.7661,
+    "n_estimators": 274,
+    "max_depth": 4,
+    "min_samples_leaf": 2
+  },
+  "falli": {
+    "model_type": "rf",
+    "mae": 2.8716,
+    "n_estimators": 361,
+    "max_depth": 3,
+    "min_samples_leaf": 10
+  },
+  "corner": {
+    "model_type": "rf",
+    "mae": 2.1157,
+    "n_estimators": 238,
+    "max_depth": 8,
+    "min_samples_leaf": 20
+  },
+  "cartellini": {
+    "model_type": "hgb",
+    "mae": 1.2039,
+    "max_iter": 146,
+    "max_depth": 4,
+    "min_samples_leaf": 16,
+    "learning_rate": 0.015942267563233716
+  },
+  "parate": {
+    "model_type": "rf",
+    "mae": 1.4963,
+    "n_estimators": 425,
+    "max_depth": 3,
+    "min_samples_leaf": 19
+  }
+}

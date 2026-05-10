@@ -10,147 +10,167 @@ import os
 
 warnings.filterwarnings('ignore')
 
-STATS = ['gol', 'tiri', 'tip', 'falli', 'corner', 'cartellini', 'parate']
+# Importa le funzioni condivise da ml_train_all
+from ml_train_all import STATS, get_stat, get_feature_cols, _avg
 
-def get_stat(row, stat_name, is_home):
-    if stat_name == 'gol':
-        return row['home_goals'] if is_home else row['away_goals']
-    elif stat_name == 'tiri':
-        return row['home_shots'] if is_home else row['away_shots']
-    elif stat_name == 'tip':
-        return row['home_sot'] if is_home else row['away_sot']
-    elif stat_name == 'falli':
-        return row['home_fouls'] if is_home else row['away_fouls']
-    elif stat_name == 'corner':
-        return row['home_corners'] if is_home else row['away_corners']
-    elif stat_name == 'cartellini':
-        y = row['home_yellows'] if is_home else row['away_yellows']
-        r = row['home_reds'] if is_home else row['away_reds']
-        return y + (r * 2)
-    elif stat_name == 'parate':
-        tip_sub = row['away_sot'] if is_home else row['home_sot']
-        gol_sub = row['away_goals'] if is_home else row['home_goals']
-        return max(0, tip_sub - gol_sub)
-    return 0
-
+# ─────────────────────────────────────────────────────────────
+# CALCOLO FEATURE PER LA PREDIZIONE
+# ─────────────────────────────────────────────────────────────
 def calculate_team_features(df, target_teams, target_refs):
-    """Calcola le medie mobili per tutte le squadre e arbitri target in un solo passaggio."""
-    team_history = {t: {s: {'for': [], 'against': []} for s in STATS} for t in target_teams}
-    ref_history = {r: {s: [] for s in STATS} for r in target_refs if r}
-    
-    # Passaggio unico sul database (vettorizzato sarebbe meglio, ma così è sicuro)
-    for row in df.itertuples():
-        h = getattr(row, 'home_team')
-        a = getattr(row, 'away_team')
-        ref = getattr(row, 'referee')
-        
-        for stat in STATS:
-            h_val = get_stat(row._asdict(), stat, True)
-            a_val = get_stat(row._asdict(), stat, False)
-            
-            if h in team_history:
-                team_history[h][stat]['for'].append(h_val)
-                team_history[h][stat]['against'].append(a_val)
-            if a in team_history:
-                team_history[a][stat]['for'].append(a_val)
-                team_history[a][stat]['against'].append(h_val)
-            
-            if ref in ref_history:
-                ref_history[ref][stat].append(h_val + a_val)
-                
-    def get_avg(lst, n=5):
-        if not lst: return 0
-        return float(np.mean(lst[-n:]))
-        
-    return team_history, ref_history
+    """
+    Scorre l'intero DB e calcola le stesse feature avanzate usate in training
+    per ogni squadra e arbitro coinvolti nelle partite da prevedere.
+    """
+    team_hist = {t: {s: {'for_all': [], 'ag_all': [],
+                          'home_for': [], 'home_ag': [],
+                          'away_for': [], 'away_ag': []}
+                     for s in STATS}
+                 for t in target_teams}
+    ref_hist  = {r: {s: [] for s in STATS} for r in target_refs if r}
 
+    for row in df.itertuples():
+        h   = row.home_team
+        a   = row.away_team
+        ref = str(getattr(row, 'referee', '') or '')
+
+        for s in STATS:
+            row_d = row._asdict()
+            hv = get_stat(row_d, s, True)
+            av = get_stat(row_d, s, False)
+
+            if h in team_hist:
+                team_hist[h][s]['for_all'].append(hv)
+                team_hist[h][s]['ag_all'].append(av)
+                team_hist[h][s]['home_for'].append(hv)
+                team_hist[h][s]['home_ag'].append(av)
+            if a in team_hist:
+                team_hist[a][s]['for_all'].append(av)
+                team_hist[a][s]['ag_all'].append(hv)
+                team_hist[a][s]['away_for'].append(av)
+                team_hist[a][s]['away_ag'].append(hv)
+            if ref in ref_hist:
+                ref_hist[ref][s].append(hv + av)
+
+    return team_hist, ref_hist
+
+
+def build_features_for_match(home, away, ref, team_hist, ref_hist):
+    """Costruisce il dizionario di feature per una singola partita."""
+    features = {}
+    ref = str(ref or '')
+
+    for s in STATS:
+        h = team_hist.get(home, {}).get(s, {'for_all': [], 'ag_all': [],
+                                             'home_for': [], 'home_ag': [],
+                                             'away_for': [], 'away_ag': []})
+        a = team_hist.get(away, {}).get(s, {'for_all': [], 'ag_all': [],
+                                             'home_for': [], 'home_ag': [],
+                                             'away_for': [], 'away_ag': []})
+
+        # Rolling home
+        features[f'f_{s}_h_for3']  = _avg(h['for_all'], 3)
+        features[f'f_{s}_h_for5']  = _avg(h['for_all'], 5)
+        features[f'f_{s}_h_for10'] = _avg(h['for_all'], 10)
+        features[f'f_{s}_h_ag3']   = _avg(h['ag_all'],  3)
+        features[f'f_{s}_h_ag5']   = _avg(h['ag_all'],  5)
+        features[f'f_{s}_h_ag10']  = _avg(h['ag_all'],  10)
+        features[f'f_{s}_h_hfor']  = _avg(h['home_for'], 5) or features[f'f_{s}_h_for5']
+        features[f'f_{s}_h_hag']   = _avg(h['home_ag'],  5) or features[f'f_{s}_h_ag5']
+
+        # Rolling away
+        features[f'f_{s}_a_for3']  = _avg(a['for_all'], 3)
+        features[f'f_{s}_a_for5']  = _avg(a['for_all'], 5)
+        features[f'f_{s}_a_for10'] = _avg(a['for_all'], 10)
+        features[f'f_{s}_a_ag3']   = _avg(a['ag_all'],  3)
+        features[f'f_{s}_a_ag5']   = _avg(a['ag_all'],  5)
+        features[f'f_{s}_a_ag10']  = _avg(a['ag_all'],  10)
+        features[f'f_{s}_a_afor']  = _avg(a['away_for'], 5) or features[f'f_{s}_a_for5']
+        features[f'f_{s}_a_aag']   = _avg(a['away_ag'],  5) or features[f'f_{s}_a_ag5']
+
+        # Differenziali
+        features[f'f_{s}_str_h'] = features[f'f_{s}_h_for5'] - features[f'f_{s}_a_ag5']
+        features[f'f_{s}_str_a'] = features[f'f_{s}_a_for5'] - features[f'f_{s}_h_ag5']
+
+        # Arbitro
+        if s in ('falli', 'cartellini'):
+            ref_vals = ref_hist.get(ref, {}).get(s, [])
+            fallback = features[f'f_{s}_h_for5'] + features[f'f_{s}_a_for5']
+            features[f'f_{s}_ref'] = _avg(ref_vals, 10) if ref_vals else fallback
+
+    return features
+
+
+# ─────────────────────────────────────────────────────────────
+# PREDIZIONE BATCH
+# ─────────────────────────────────────────────────────────────
 def predict_batch(matches):
     try:
-        # Load recent data
         conn = sqlite3.connect('resoconto.db', timeout=30)
-        df = pd.read_sql_query("SELECT * FROM matches ORDER BY date ASC", conn)
+        df   = pd.read_sql_query("SELECT * FROM matches ORDER BY date ASC", conn)
         conn.close()
-        
-        # Identify unique teams and refs
+
         target_teams = set()
-        target_refs = set()
+        target_refs  = set()
         for m in matches:
             target_teams.add(m['home'])
             target_teams.add(m['away'])
-            if m.get('referee'): target_refs.add(m['referee'])
-            
-        # Pre-calculate features for all involved
-        team_history, ref_history = calculate_team_features(df, target_teams, target_refs)
-        
-        # Load all models once
+            if m.get('referee'):
+                target_refs.add(str(m['referee']))
+
+        team_hist, ref_hist = calculate_team_features(df, target_teams, target_refs)
+
+        # Carica tutti i modelli una sola volta
         models = {}
-        for stat in STATS:
-            models[f'{stat}_casa'] = joblib.load(f'models/rf_{stat}_casa.joblib')
-            models[f'{stat}_ospite'] = joblib.load(f'models/rf_{stat}_ospite.joblib')
-            
+        models_dir = 'models'
+        for s in STATS:
+            models[f'{s}_casa']   = joblib.load(os.path.join(models_dir, f'rf_{s}_casa.joblib'))
+            models[f'{s}_ospite'] = joblib.load(os.path.join(models_dir, f'rf_{s}_ospite.joblib'))
+
         batch_results = []
         for m in matches:
-            home, away, ref = m['home'], m['away'], m.get('referee')
-            
-            # Prepare features for this match
-            features = {}
-            for stat in STATS:
-                def get_avg(lst, n=5):
-                    if not lst: return 0
-                    return float(np.mean(lst[-n:]))
+            home = m['home']
+            away = m['away']
+            ref  = m.get('referee', '')
 
-                features[f'f_home_{stat}_for'] = get_avg(team_history[home][stat]['for'])
-                features[f'f_home_{stat}_ag'] = get_avg(team_history[home][stat]['against'])
-                features[f'f_away_{stat}_for'] = get_avg(team_history[away][stat]['for'])
-                features[f'f_away_{stat}_ag'] = get_avg(team_history[away][stat]['against'])
-                
-                if stat in ['falli', 'cartellini']:
-                    ref_avg = 0
-                    if ref and ref in ref_history:
-                        ref_avg = get_avg(ref_history[ref][stat], n=10)
-                    
-                    if not ref_avg:
-                        # Fallback
-                        ref_avg = (get_avg(team_history[home][stat]['for']) + get_avg(team_history[away][stat]['for']))
-                    features[f'f_ref_{stat}'] = ref_avg
-            
+            feats = build_features_for_match(home, away, ref, team_hist, ref_hist)
             match_preds = {}
-            for stat in STATS:
-                feature_cols = [f'f_home_{stat}_for', f'f_home_{stat}_ag', f'f_away_{stat}_for', f'f_away_{stat}_ag']
-                if stat in ['falli', 'cartellini']: feature_cols.append(f'f_ref_{stat}')
-                
-                X = pd.DataFrame([{c: features[c] for c in feature_cols}])
-                pred_casa = float(models[f'{stat}_casa'].predict(X)[0])
-                pred_ospite = float(models[f'{stat}_ospite'].predict(X)[0])
-                
-                match_preds[stat] = {'casa': round(pred_casa, 2), 'ospite': round(pred_ospite, 2)}
-            
+
+            for s in STATS:
+                fcols = get_feature_cols(s)
+                X     = pd.DataFrame([{c: feats.get(c, 0) for c in fcols}])
+                pred_c = float(models[f'{s}_casa'].predict(X)[0])
+                pred_o = float(models[f'{s}_ospite'].predict(X)[0])
+                match_preds[s] = {'casa': round(pred_c, 2), 'ospite': round(pred_o, 2)}
+
             batch_results.append(match_preds)
-            
+
         print(json.dumps(batch_results))
-        
+
     except Exception as e:
         print(json.dumps({'error': str(e)}))
         sys.exit(1)
 
-if __name__ == "__main__":
+
+# ─────────────────────────────────────────────────────────────
+# ENTRY POINT
+# ─────────────────────────────────────────────────────────────
+if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batch', help='JSON string with matches list')
-    parser.add_argument('--batch-file', help='Path to JSON file with matches list')
+    parser.add_argument('--batch',      help='JSON string con lista partite')
+    parser.add_argument('--batch-file', help='Path a file JSON con lista partite')
     parser.add_argument('--home')
     parser.add_argument('--away')
     parser.add_argument('--referee', default='')
     args = parser.parse_args()
-    
+
     if args.batch_file:
         with open(args.batch_file, 'r', encoding='utf-8') as f:
             matches = json.load(f)
         predict_batch(matches)
     elif args.batch:
-        matches = json.loads(args.batch)
-        predict_batch(matches)
+        predict_batch(json.loads(args.batch))
     elif args.home and args.away:
         predict_batch([{'home': args.home, 'away': args.away, 'referee': args.referee}])
     else:
-        print(json.dumps({'error': 'Missing arguments'}))
+        print(json.dumps({'error': 'Argomenti mancanti: usa --home/--away o --batch'}))
         sys.exit(1)

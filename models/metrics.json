@@ -1,0 +1,51 @@
+{
+  "gol": {
+    "model_type": "rf",
+    "mae": 0.9171,
+    "champion_updated": false,
+    "trained_at": "2026-05-10T14:45:31.935626",
+    "n_samples": 1239
+  },
+  "tiri": {
+    "model_type": "rf",
+    "mae": 3.6534,
+    "champion_updated": false,
+    "trained_at": "2026-05-10T14:45:45.899871",
+    "n_samples": 1239
+  },
+  "tip": {
+    "model_type": "rf",
+    "mae": 1.7661,
+    "champion_updated": false,
+    "trained_at": "2026-05-10T14:45:58.201292",
+    "n_samples": 1239
+  },
+  "falli": {
+    "model_type": "rf",
+    "mae": 2.8716,
+    "champion_updated": false,
+    "trained_at": "2026-05-10T14:46:15.132617",
+    "n_samples": 1239
+  },
+  "corner": {
+    "model_type": "rf",
+    "mae": 2.1157,
+    "champion_updated": false,
+    "trained_at": "2026-05-10T14:46:29.472269",
+    "n_samples": 1239
+  },
+  "cartellini": {
+    "model_type": "hgb",
+    "mae": 1.2039,
+    "champion_updated": false,
+    "trained_at": "2026-05-10T14:46:39.859516",
+    "n_samples": 1239
+  },
+  "parate": {
+    "model_type": "rf",
+    "mae": 1.4963,
+    "champion_updated": false,
+    "trained_at": "2026-05-10T14:47:01.195524",
+    "n_samples": 1239
+  }
+}
