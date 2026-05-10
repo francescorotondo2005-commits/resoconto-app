@@ -167,8 +167,8 @@ async function run() {
   const userBets = [
     "Inter - Parma|OVER 6,5 TIRI OSPITE",
     "Espanol - Real Madrid|UNDER 16,5 TIRI OSPITE",
-    "Freiburg - Wolfsburg|UNDER 4,5 CORNER OSPITE",
-    "Freiburg - Wolfsburg|1X2 TIRI IN PORTA: 1",
+    "Friburgo - Wolfsburg|UNDER 4,5 CORNER OSPITE",
+    "Friburgo - Wolfsburg|1X2 TIRI IN PORTA: 1",
     "Juventus - Verona|UNDER 19,5 TIRI CASA",
     "M'gladbach - Dortmund|UNDER 5,5 CORNER OSPITE",
     "Getafe - Vallecano|UNDER 5,5 CARTELLINI TOTALI",
