@@ -231,7 +231,7 @@ export default function TrackerPage() {
       <Sidebar />
       <main className="main-content">
         <div className="page-header" style={{ marginBottom: 20 }}>
-          <h1 className="page-title">📈 Tracker & Backtest</h1>
+          <h1 className="page-title">📈 Tracker & Backtest ({backtestBets.length} totali riceve)</h1>
           <p className="page-subtitle">Monitora le tue giocate e le performance del modello</p>
         </div>
 
