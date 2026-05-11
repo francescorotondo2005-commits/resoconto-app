@@ -157,55 +157,7 @@ export default function TrackerPage() {
     bankrollHistory.push(runningTotal);
   }
 
-  const filteredBacktestBets = backtestBets.filter(b => {
-    if (b.best_edge < minBacktestEdge) return false;
-    if (b.probability < minBacktestProb) return false;
-    
-    const maxOdds = Math.max(b.sportium || 0, b.sportbet || 0);
-    if (minOdds > 0 && maxOdds < minOdds) return false;
-    
-    // Calcolo Form Score (Media Pura)
-    let formScore = null;
-    const fParts = [];
-    if (b.form_home_pct !== null) fParts.push(b.form_home_pct);
-    if (b.form_away_pct !== null) fParts.push(b.form_away_pct);
-    if (b.form_home_gen_pct !== null) fParts.push(b.form_home_gen_pct);
-    if (b.form_away_gen_pct !== null) fParts.push(b.form_away_gen_pct);
-    if (fParts.length > 0) formScore = fParts.reduce((a,v) => a+v, 0) / fParts.length;
-
-    // Controllo Forma
-    if (minFormAvg > 0) {
-      if (formScore === null || formScore < minFormAvg) return false;
-    }
-    if (minFormSingle > 0) {
-      if (fParts.length !== 4) return false; // Serve il campione completo
-      if (Math.min(...fParts) < minFormSingle) return false;
-    }
-
-    // Controllo Hist
-    const hParts = [];
-    if (b.home_hist_pct !== null) hParts.push(b.home_hist_pct);
-    if (b.away_hist_pct !== null) hParts.push(b.away_hist_pct);
-    if (b.home_hist_overall_pct !== null) hParts.push(b.home_hist_overall_pct);
-    if (b.away_hist_overall_pct !== null) hParts.push(b.away_hist_overall_pct);
-    
-    const hasRef = b.ref_hist_pct !== null;
-    if (hasRef) hParts.push(b.ref_hist_pct);
-    
-    let histScore = null;
-    if (hParts.length > 0) histScore = hParts.reduce((a,v) => a+v, 0) / hParts.length;
-
-    if (minHistAvg > 0) {
-      if (histScore === null || histScore < minHistAvg) return false;
-    }
-    if (minHistSingle > 0) {
-      const expectedLen = hasRef ? 5 : 4;
-      if (hParts.length !== expectedLen) return false;
-      if (Math.min(...hParts) < minHistSingle) return false;
-    }
-
-    return true;
-  });
+  const filteredBacktestBets = backtestBets;
   
   const backtestHistory = [];
   let btTotal = 0;
