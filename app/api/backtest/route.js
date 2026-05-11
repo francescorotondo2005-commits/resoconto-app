@@ -46,6 +46,7 @@ export async function GET(request) {
     const db = await getDb();
     const res = await db.execute({ sql: 'SELECT * FROM backtest_bets ORDER BY created_at DESC LIMIT ?', args: [limit] });
     const rawBets = res.rows;
+    console.log(`[API Backtest] Righe lette dal DB: ${rawBets.length}`);
 
     // Raggruppa per campionato per fare UNA sola query per lega
     const byLeague = {};
@@ -63,47 +64,10 @@ export async function GET(request) {
 
     // Arricchisci le bet con storico (solo se hist_score non già salvato in DB)
     const backtestBets = [];
-    for (const league of Object.keys(byLeague)) {
-      const { matches, bets } = byLeague[league];
-
-      for (const bet of bets) {
-        // Se già calcolato in DB, usa quello (più veloce)
-        if (bet.hist_score !== null && bet.hist_score !== undefined) {
-          // Rimuovi campi interni
-          const { _homeTeam, _awayTeam, ...clean } = bet;
-          backtestBets.push(clean);
-          continue;
-        }
-
-        // Altrimenti calcola live
-        const matchesBefore = matches.filter(m => m.date < bet.match_date);
-
-        // Recupera arbitro da pending_matches se esiste
-        let referee = null;
-        try {
-          const pmRes = await db.execute({
-            sql: 'SELECT referee FROM pending_matches WHERE match_key = ?',
-            args: [bet.match_key]
-          });
-          referee = pmRes.rows[0]?.referee || null;
-        } catch { /* ignora */ }
-
-        // Se non trovato in pending, cerca nella tabella matches (partita già conclusa)
-        if (!referee) {
-          const matchInDb = matches.find(m => m.home_team === bet._homeTeam && m.away_team === bet._awayTeam && m.date >= bet.match_date && m.date <= bet.match_date + 'z'); // Approssimazione
-          if (!matchInDb) {
-            // Cerchiamo solo per squadre, visto che si gioca una volta in casa a stagione
-            const matchByTeam = matches.find(m => m.home_team === bet._homeTeam && m.away_team === bet._awayTeam);
-            if (matchByTeam) referee = matchByTeam.referee;
-          } else {
-            referee = matchInDb.referee;
-          }
-        }
-
-        const enriched = enrichBetWithHistory(bet, matchesBefore, referee);
-        const { _homeTeam, _awayTeam, ...clean } = enriched;
-        backtestBets.push(clean);
-      }
+    for (const b of rawBets) {
+        // Estraiamo i dati dal match_key per l'arricchimento se serve
+        const [league, homeTeam, awayTeam] = b.match_key.split('|');
+        backtestBets.push({ ...b, _homeTeam: homeTeam, _awayTeam: awayTeam });
     }
 
     // Ordina per created_at DESC (stesso ordine originale)
@@ -138,6 +102,7 @@ export async function GET(request) {
     const avgEdge = total > 0 ? completed.reduce((s, b) => s + b.best_edge, 0) / total : 0;
 
     const stats = { total, wins, losses, hitRate, theoreticalProfit, yieldPercentage, avgEdge, byCategory };
+    console.log(`[API Backtest] Righe restituite all'interfaccia: ${backtestBets.length}`);
 
     return NextResponse.json({ backtestBets, stats });
   } catch (error) {
