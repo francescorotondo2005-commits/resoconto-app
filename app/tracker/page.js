@@ -14,8 +14,8 @@ export default function TrackerPage() {
   // Backtest
   const [backtestBets, setBacktestBets] = useState([]);
   const [backtestStats, setBacktestStats] = useState({});
-  const [minBacktestEdge, setMinBacktestEdge] = useState(0.15);
-  const [minBacktestProb, setMinBacktestProb] = useState(0.65);
+  const [minBacktestEdge, setMinBacktestEdge] = useState(0);
+  const [minBacktestProb, setMinBacktestProb] = useState(0);
   const [minOdds, setMinOdds] = useState(0); // 0 = nessun filtro quota
   const [minHistAvg, setMinHistAvg] = useState(0);
   const [minHistSingle, setMinHistSingle] = useState(0);

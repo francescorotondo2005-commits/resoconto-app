@@ -1,12 +1,72 @@
 {
   "gol": {
     "model_type": "rf",
-    "mae": 0.917,
-    "champion_updated": false,
-    "trained_at": "2026-05-11T17:40:00",
-    "n_samples": 100,
+    "mae": 0.9149,
+    "champion_updated": true,
+    "trained_at": "2026-05-12T00:27:28.401316",
+    "n_samples": 1516,
     "variance_model_type": "xgb",
-    "variance_mae": 0.452,
-    "variance_trained_at": "2026-05-11T17:40:00"
+    "variance_mae": 0.9016,
+    "variance_trained_at": "2026-05-12T00:27:29.229754"
+  },
+  "tiri": {
+    "model_type": "rf",
+    "mae": 3.6795,
+    "champion_updated": false,
+    "trained_at": "2026-05-12T00:22:28.301557",
+    "n_samples": 1516,
+    "variance_model_type": "xgb",
+    "variance_mae": 15.3696,
+    "variance_trained_at": "2026-05-12T00:27:36.450268"
+  },
+  "tip": {
+    "model_type": "rf",
+    "mae": 1.766,
+    "champion_updated": false,
+    "trained_at": "2026-05-12T00:22:48.475838",
+    "n_samples": 1516,
+    "variance_model_type": "xgb",
+    "variance_mae": 3.6018,
+    "variance_trained_at": "2026-05-12T00:27:41.850586"
+  },
+  "falli": {
+    "model_type": "rf",
+    "mae": 2.8578,
+    "champion_updated": true,
+    "trained_at": "2026-05-12T00:28:08.737819",
+    "n_samples": 1516,
+    "variance_model_type": "xgb",
+    "variance_mae": 8.7808,
+    "variance_trained_at": "2026-05-12T00:28:09.590308"
+  },
+  "corner": {
+    "model_type": "rf",
+    "mae": 2.1245,
+    "champion_updated": true,
+    "trained_at": "2026-05-12T00:28:27.399288",
+    "n_samples": 1516,
+    "variance_model_type": "xgb",
+    "variance_mae": 5.4338,
+    "variance_trained_at": "2026-05-12T00:28:28.247317"
+  },
+  "cartellini": {
+    "model_type": "rf",
+    "mae": 1.2035,
+    "champion_updated": true,
+    "trained_at": "2026-05-12T00:28:52.913456",
+    "n_samples": 1516,
+    "variance_model_type": "xgb",
+    "variance_mae": 1.8953,
+    "variance_trained_at": "2026-05-12T00:28:53.711377"
+  },
+  "parate": {
+    "model_type": "rf",
+    "mae": 1.5062,
+    "champion_updated": false,
+    "trained_at": "2026-05-12T00:23:49.895501",
+    "n_samples": 1516,
+    "variance_model_type": "xgb",
+    "variance_mae": 2.7219,
+    "variance_trained_at": "2026-05-12T00:28:56.682734"
   }
 }

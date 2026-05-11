@@ -1,23 +1,38 @@
-const fs = require('fs');
-const path = require('path');
-const { createClient } = require('@libsql/client');
-const { execFile } = require('child_process');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { createClient } from '@libsql/client';
+import { execFile } from 'child_process';
 
-// Costruisci le dipendenze minimali
-const { EV_AVANZATO, SD_AVANZATO, CV_CALC } = require('./lib/engine.js');
-const { PROB_BINOM_NEG, PROB_1X2_IBRIDO } = require('./lib/probability.js');
-const { INDICE_ARBITRO_AVANZATO } = require('./lib/referee.js');
-const { getAllMarkets, generateCustomMarket } = require('./lib/markets.js');
+// Helpers per ESM
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Importazioni dei moduli del progetto (ESM)
+import { EV_AVANZATO, SD_AVANZATO, CV_CALC } from './lib/engine.js';
+import { PROB_BINOM_NEG, PROB_1X2_IBRIDO, PROB_BINOM_NEG_ML, PROB_1X2_IBRIDO_ML } from './lib/probability.js';
+import { INDICE_ARBITRO_AVANZATO } from './lib/referee.js';
+import { getAllMarkets, generateCustomMarket } from './lib/markets.js';
+
 const baseMarkets = getAllMarkets();
 
-const env = fs.readFileSync('.env.local', 'utf8').split('\n').reduce((acc, line) => {
-  const match = line.match(/^([^=]+)=(.*)$/);
-  if (match) acc[match[1]] = match[2].trim();
-  return acc;
-}, {});
+// Caricamento variabili d'ambiente manuale per script standalone
+let env = {};
+try {
+  const envData = fs.readFileSync('.env.local', 'utf8');
+  env = envData.split('\n').reduce((acc, line) => {
+    const match = line.match(/^([^=]+)=(.*)$/);
+    if (match) acc[match[1].trim()] = match[2].trim().replace(/^"|"$/g, '');
+    return acc;
+  }, {});
+} catch (e) {
+  console.warn("Avviso: .env.local non trovato, uso default.");
+}
 
 async function start() {
-  const db = createClient({ url: env.TURSO_DATABASE_URL || 'file:resoconto.db', authToken: env.TURSO_AUTH_TOKEN });
+  const db = createClient({ 
+    url: env.TURSO_DATABASE_URL || 'file:resoconto.db', 
+    authToken: env.TURSO_AUTH_TOKEN 
+  });
 
   console.log("1/5 Fetching data from database...");
   const resBets = await db.execute("SELECT * FROM backtest_bets");
@@ -37,7 +52,6 @@ async function start() {
     if (!uniqueMatchesMap.has(b.match_key)) {
       const [league, home, away] = b.match_key.split('|');
       
-      // Cerca l'arbitro
       let referee = null;
       const m = allMatches.find(m => m.home_team === home && m.away_team === away);
       if (m) referee = m.referee;
@@ -47,14 +61,16 @@ async function start() {
   }
 
   const uniqueMatches = Array.from(uniqueMatchesMap.values());
-  console.log(`2/5 Running ML Predictions for ${uniqueMatches.length} unique matches...`);
+  console.log(`2/5 Running ML Predictions for ${uniqueMatches.length} unique matches (Level 3)...`);
 
   // Write batch file
   const batchFilePath = path.join(__dirname, `temp_batch_ml_${Date.now()}.json`);
   fs.writeFileSync(batchFilePath, JSON.stringify(uniqueMatches));
 
   const mlPredictions = await new Promise((resolve, reject) => {
-    execFile('python', ['ml_predict.py', '--batch-file', batchFilePath], { maxBuffer: 1024 * 1024 * 50 }, (err, stdout) => {
+    // Usa l'eseguibile Python specifico
+    const pythonExec = 'C:\\Users\\pierr\\AppData\\Local\\Programs\\Python\\Python314\\python.exe';
+    execFile(pythonExec, ['ml_predict.py', '--batch-file', batchFilePath], { maxBuffer: 1024 * 1024 * 50 }, (err, stdout) => {
       if (err) return reject(err);
       try {
         resolve(JSON.parse(stdout.trim()));
@@ -75,7 +91,7 @@ async function start() {
     mlPredsByKey[uniqueKeys[i]] = mlPredictions[i];
   }
 
-  console.log("3/5 Recalculating Probabilities and Edges...");
+  console.log("3/5 Recalculating Probabilities and Edges with Dynamic Variance...");
 
   const updates = [];
 
@@ -85,29 +101,14 @@ async function start() {
 
     if (!preds) continue;
 
-    // Past matches for SD calculation
+    // Past matches per SD (se necessario fallback)
     const pastMatches = allMatches.filter(m => m.date < b.match_date && m.league === league);
 
-    // Rebuild marketDef
-    let marketDef = null;
+    // Ricostruisci marketDef
+    let foundMarketDef = null;
     if (b.is_custom === 1) {
-      marketDef = generateCustomMarket(b.custom_stat, b.custom_type, b.custom_scope, b.custom_direction, b.custom_line, b.custom_esito);
+      foundMarketDef = generateCustomMarket(b.custom_stat, b.custom_type, b.custom_scope, b.custom_direction, b.custom_line, b.custom_esito);
     } else {
-      // Find from baseMarkets
-      for (const m of baseMarkets) {
-        // Formatta il bet_name in base al format del market per capire se matcha
-        // Ma e' piu' sicuro estrarre dalla lista di baseMarkets iterandoli se hanno nome uguale? 
-        // No, b.bet_name non e' `marketDef.name`. `mktRow.market_name` in odds map is not available here.
-        // Wait, b.bet_name was generated.
-        // I can just find marketDef by analyzing b.bet_name.
-        // Actually, we can use the `baseMarkets` and see which one generates `b.bet_name` when called with team names!
-      }
-    }
-
-    // Wait, backtest_bets doesn't save marketDef directly, but it saves bet_name!
-    // Let's implement a robust way to find marketDef.
-    let foundMarketDef = marketDef;
-    if (!foundMarketDef && b.is_custom === 0) {
       for (const m of baseMarkets) {
         const generatedName = typeof m.format === 'function' ? m.format(homeTeam, awayTeam) : m.name;
         if (generatedName === b.bet_name) {
@@ -117,51 +118,48 @@ async function start() {
       }
     }
 
-    if (!foundMarketDef) continue; // Skip if we can't find it (rare)
+    if (!foundMarketDef) continue;
 
-    // Compute EV using ML, SD using AVANZATO
+    // Calcolo EV e Varianza ML
     let evMl = null;
+    let varMl = null;
+    let probMl = null;
+
     const scope = foundMarketDef.scope === 'casa' ? 'casa' : foundMarketDef.scope === 'ospite' ? 'ospite' : null;
+    
     if (scope) {
       evMl = preds[foundMarketDef.stat][scope];
+      varMl = preds[foundMarketDef.stat][`${scope}_var`] || Math.pow(SD_AVANZATO(homeTeam, awayTeam, foundMarketDef.stat, scope, pastMatches), 2);
     } else if (foundMarketDef.type === 'over_under') {
       evMl = Math.round((preds[foundMarketDef.stat].casa + preds[foundMarketDef.stat].ospite) * 100) / 100;
+      const vCasa = preds[foundMarketDef.stat].casa_var || Math.pow(SD_AVANZATO(homeTeam, awayTeam, foundMarketDef.stat, 'casa', pastMatches), 2);
+      const vOspite = preds[foundMarketDef.stat].ospite_var || Math.pow(SD_AVANZATO(homeTeam, awayTeam, foundMarketDef.stat, 'ospite', pastMatches), 2);
+      varMl = vCasa + vOspite;
     } else if (foundMarketDef.type === '1x2') {
-      evMl = foundMarketDef.esito === '1' ? preds[foundMarketDef.stat].casa : foundMarketDef.esito === '2' ? preds[foundMarketDef.stat].ospite : (preds[foundMarketDef.stat].casa + preds[foundMarketDef.stat].ospite) / 2;
+       // 1x2 usa le varianze separate
+       const evCasa = preds[foundMarketDef.stat].casa;
+       const evOspite = preds[foundMarketDef.stat].ospite;
+       const vCasa = preds[foundMarketDef.stat].casa_var || Math.pow(SD_AVANZATO(homeTeam, awayTeam, foundMarketDef.stat, 'casa', pastMatches), 2);
+       const vOspite = preds[foundMarketDef.stat].ospite_var || Math.pow(SD_AVANZATO(homeTeam, awayTeam, foundMarketDef.stat, 'ospite', pastMatches), 2);
+       
+       probMl = PROB_1X2_IBRIDO_ML(evCasa, vCasa, evOspite, vOspite, foundMarketDef.esito);
+       evMl = foundMarketDef.esito === '1' ? evCasa : foundMarketDef.esito === '2' ? evOspite : (evCasa + evOspite) / 2;
     }
 
-    if (evMl === null) continue;
-
-    let sd = null;
-    let probability = null;
-
-    if (foundMarketDef.type === 'over_under') {
-      if (foundMarketDef.scope === 'casa' || foundMarketDef.scope === 'ospite') {
-        sd = SD_AVANZATO(homeTeam, awayTeam, foundMarketDef.stat, foundMarketDef.scope, pastMatches);
-      } else {
-        const sdCasa = SD_AVANZATO(homeTeam, awayTeam, foundMarketDef.stat, 'casa', pastMatches);
-        const sdOspite = SD_AVANZATO(homeTeam, awayTeam, foundMarketDef.stat, 'ospite', pastMatches);
-        sd = Math.sqrt(sdCasa ** 2 + sdOspite ** 2);
+    if (evMl !== null) {
+      if (foundMarketDef.type === 'over_under' && varMl !== null) {
+        probMl = PROB_BINOM_NEG_ML(foundMarketDef.line, evMl, varMl, foundMarketDef.direction);
       }
-      probability = PROB_BINOM_NEG(foundMarketDef.line, evMl, sd, foundMarketDef.direction);
-    } else if (foundMarketDef.type === '1x2') {
-       const sdCasa = SD_AVANZATO(homeTeam, awayTeam, foundMarketDef.stat, 'casa', pastMatches);
-       const sdOspite = SD_AVANZATO(homeTeam, awayTeam, foundMarketDef.stat, 'ospite', pastMatches);
-       sd = foundMarketDef.esito === '1' ? sdCasa : foundMarketDef.esito === '2' ? sdOspite : Math.sqrt((sdCasa ** 2 + sdOspite ** 2) / 2);
-       // Wait, PROB_1X2_IBRIDO takes 5 args for 1X2!
-       const evCasaMl = preds[foundMarketDef.stat].casa;
-       const evOspiteMl = preds[foundMarketDef.stat].ospite;
-       probability = PROB_1X2_IBRIDO(evCasaMl, sdCasa, evOspiteMl, sdOspite, foundMarketDef.esito);
-    }
 
-    if (probability !== null) {
-      const bestOdds = Math.max(b.sportium || 0, b.sportbet || 0);
-      const edge = bestOdds > 0 ? (bestOdds * probability) - 1 : 0;
+      if (probMl !== null) {
+        const bestOdds = Math.max(b.sportium || 0, b.sportbet || 0);
+        const edge = bestOdds > 0 ? (bestOdds * probMl) - 1 : 0;
 
-      updates.push({
-        sql: "UPDATE backtest_bets SET probability = ?, best_edge = ?, ev_ml = ? WHERE id = ?",
-        args: [probability, edge, evMl, b.id]
-      });
+        updates.push({
+          sql: "UPDATE backtest_bets SET probability = ?, best_edge = ?, ev_ml = ? WHERE id = ?",
+          args: [probMl, edge, evMl, b.id]
+        });
+      }
     }
   }
 
@@ -173,6 +171,10 @@ async function start() {
   }
 
   console.log("5/5 Done!");
+  process.exit(0);
 }
 
-start().catch(console.error);
+start().catch(err => {
+  console.error(err);
+  process.exit(1);
+});

@@ -108,7 +108,8 @@ def build_features_for_match(home, away, ref, team_hist, ref_hist):
 # ─────────────────────────────────────────────────────────────
 def predict_batch(matches):
     try:
-        conn = sqlite3.connect('resoconto.db', timeout=30)
+        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resoconto.db')
+        conn = sqlite3.connect(db_path, timeout=30)
         df   = pd.read_sql_query("SELECT * FROM matches ORDER BY date ASC", conn)
         conn.close()
 

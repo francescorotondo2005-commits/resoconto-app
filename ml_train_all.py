@@ -12,6 +12,7 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import KFold
 import xgboost as xgb
 import optuna
+import libsql_client as libsql
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 warnings.filterwarnings('ignore')
 
@@ -86,9 +87,30 @@ def get_feature_cols(stat):
 # CARICAMENTO DATI
 # ?????????????????????????????????????????????????????????????
 def load_data(db_path='resoconto.db'):
-    conn = sqlite3.connect(db_path, timeout=30)
-    df = pd.read_sql_query("SELECT * FROM matches ORDER BY date ASC", conn)
-    conn.close()
+    # Caricamento variabili d'ambiente dal file .env.local
+    env = {}
+    if os.path.exists('.env.local'):
+        with open('.env.local', 'r') as f:
+            for line in f:
+                if '=' in line:
+                    k, v = line.strip().split('=', 1)
+                    env[k] = v.strip().strip('"')
+    
+    url = env.get('TURSO_DATABASE_URL')
+    token = env.get('TURSO_AUTH_TOKEN')
+    
+    if url and token:
+        print(f"[DB] Connessione a Turso in corso...")
+        client = libsql.create_client_sync(url, auth_token=token)
+        res = client.execute("SELECT * FROM matches ORDER BY date ASC")
+        df = pd.DataFrame(res.rows, columns=res.columns)
+        client.close()
+    else:
+        print(f"[DB] Connessione al database locale ({db_path})...")
+        conn = sqlite3.connect(db_path, timeout=30)
+        df = pd.read_sql_query("SELECT * FROM matches ORDER BY date ASC", conn)
+        conn.close()
+        
     df['date'] = pd.to_datetime(df['date'], errors='coerce')
     df = df.dropna(subset=['date']).sort_values('date').reset_index(drop=True)
     return df

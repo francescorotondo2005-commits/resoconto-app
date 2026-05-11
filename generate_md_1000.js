@@ -1,4 +1,4 @@
-const fs = require('fs');
+import fs from 'fs';
 
 const data = JSON.parse(fs.readFileSync('grid_search_results_relaxed.json', 'utf8'));
 const topResults = data.results;

@@ -1,53 +1,51 @@
 {
   "gol": {
     "model_type": "rf",
-    "mae": 0.917,
-    "n_estimators": 152,
+    "mae": 0.9148,
+    "n_estimators": 285,
     "max_depth": 4,
-    "min_samples_leaf": 2
+    "min_samples_leaf": 5
   },
   "tiri": {
     "model_type": "rf",
-    "mae": 3.6616,
-    "n_estimators": 437,
+    "mae": 3.6795,
+    "n_estimators": 313,
     "max_depth": 4,
-    "min_samples_leaf": 6
+    "min_samples_leaf": 14
   },
   "tip": {
     "model_type": "rf",
     "mae": 1.766,
-    "n_estimators": 284,
+    "n_estimators": 321,
     "max_depth": 4,
-    "min_samples_leaf": 4
+    "min_samples_leaf": 16
   },
   "falli": {
     "model_type": "rf",
-    "mae": 2.8705,
-    "n_estimators": 103,
-    "max_depth": 3,
-    "min_samples_leaf": 7
+    "mae": 2.8568,
+    "n_estimators": 399,
+    "max_depth": 4,
+    "min_samples_leaf": 6
   },
   "corner": {
     "model_type": "rf",
-    "mae": 2.1132,
-    "n_estimators": 468,
-    "max_depth": 4,
-    "min_samples_leaf": 20
+    "mae": 2.1229,
+    "n_estimators": 268,
+    "max_depth": 3,
+    "min_samples_leaf": 16
   },
   "cartellini": {
-    "model_type": "xgb",
-    "mae": 1.1971,
-    "n_estimators": 100,
-    "max_depth": 5,
-    "learning_rate": 0.010670643930130591,
-    "subsample": 0.6145303801841837,
-    "colsample_bytree": 0.9801449972260011
+    "model_type": "rf",
+    "mae": 1.2024,
+    "n_estimators": 412,
+    "max_depth": 3,
+    "min_samples_leaf": 3
   },
   "parate": {
     "model_type": "rf",
-    "mae": 1.4961,
-    "n_estimators": 105,
+    "mae": 1.5062,
+    "n_estimators": 177,
     "max_depth": 3,
-    "min_samples_leaf": 14
+    "min_samples_leaf": 11
   }
 }

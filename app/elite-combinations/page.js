@@ -95,79 +95,13 @@ export default function EliteCombinationsPage() {
           </div>
         </div>
 
-        {/* Pannello Generazione */}
-        <div className="card" style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
-            ⚙️ Parametri Filtro (Maestri)
+
+        {lastGenerated && (
+          <div style={{ marginBottom: 16, fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ color: 'var(--accent-primary)' }}>●</span> 
+            Ultimo ricalcolo locale effettuato il: <strong>{new Date(lastGenerated).toLocaleString('it-IT')}</strong>
           </div>
-
-          <div className="form-row" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
-            <div className="input-group">
-              <label>Win Rate Minimo (%)</label>
-              <input type="number" value={minWinRate} min={50} max={100} step={1}
-                onChange={e => setMinWinRate(parseFloat(e.target.value))} />
-            </div>
-            <div className="input-group">
-              <label>Scommesse Minime</label>
-              <input type="number" value={minBets} min={1} max={500} step={1}
-                onChange={e => setMinBets(parseInt(e.target.value))} />
-            </div>
-            <div className="input-group">
-              <label>Quota Minima</label>
-              <input type="number" value={minQuota} min={1.01} max={5} step={0.05}
-                onChange={e => setMinQuota(parseFloat(e.target.value))} />
-            </div>
-            <div className="input-group">
-              <label>Max Combinazioni da Salvare</label>
-              <input type="number" value={topK} min={100} max={50000} step={100}
-                onChange={e => setTopK(parseInt(e.target.value))} />
-            </div>
-          </div>
-
-          <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
-            <button
-              className="btn btn-primary"
-              onClick={runGridSearch}
-              disabled={running}
-              style={{ minWidth: 240 }}
-            >
-              {running ? '⏳ Calcolo in corso...' : '🚀 Calcola Combinazioni Elite'}
-            </button>
-
-            {running && (
-              <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                Questo può richiedere 3-5 minuti. Non chiudere la pagina.
-              </div>
-            )}
-
-            {result && !running && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '8px 16px', borderRadius: 8,
-                background: 'rgba(16, 185, 129, 0.12)', border: '1px solid var(--green)',
-                fontSize: 13, fontWeight: 600, color: 'var(--green)'
-              }}>
-                ✅ {result.message} (in {elapsed}s)
-              </div>
-            )}
-
-            {error && (
-              <div style={{
-                padding: '8px 16px', borderRadius: 8,
-                background: 'rgba(239,68,68,0.12)', border: '1px solid var(--red)',
-                fontSize: 13, color: 'var(--red)'
-              }}>
-                ❌ {error}
-              </div>
-            )}
-          </div>
-
-          {lastGenerated && (
-            <div style={{ marginTop: 10, fontSize: 11, color: 'var(--text-muted)' }}>
-              Ultimo aggiornamento: {new Date(lastGenerated).toLocaleString('it-IT')}
-            </div>
-          )}
-        </div>
+        )}
 
         {/* Tabella Combinazioni */}
         <div className="card">

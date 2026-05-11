@@ -3,8 +3,8 @@
  * poi deduplica e taglia alla fine.
  * Molto più veloce perché non fa sort durante il loop.
  */
-const fs = require('fs');
-const { createClient } = require('@libsql/client');
+import fs from 'fs';
+import { createClient } from '@libsql/client';
 
 const env = fs.readFileSync('.env.local', 'utf8').split('\n').reduce((acc, line) => {
   const match = line.match(/^([^=]+)=(.*)$/);
@@ -12,7 +12,7 @@ const env = fs.readFileSync('.env.local', 'utf8').split('\n').reduce((acc, line)
   return acc;
 }, {});
 
-let MIN_BETS = 14;
+let MIN_BETS = 15;
 let MIN_WINRATE = 0.80;
 let MIN_QUOTA = 1.60;
 let TOP_K = 5000;

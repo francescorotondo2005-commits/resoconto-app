@@ -22,6 +22,10 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_DIR = path.resolve(__dirname, '..');
 
+// Global Python executable path for ML routes
+const pythonExecutable = 'C:\\Users\\pierr\\AppData\\Local\\Programs\\Python\\Python314\\python.exe';
+
+
 // Importa il modulo scraper e il db dalla cartella lib del progetto principale
 import { scrapeBothBooks } from '../lib/scraper.js';
 import { getDb, getSetting } from '../lib/db.js';
@@ -238,17 +242,20 @@ app.post('/ml-predict', (req, res) => {
     return res.status(400).json({ error: 'homeTeam e awayTeam sono obbligatori' });
   }
 
-  const scriptPath = path.join(PROJECT_DIR, 'ml_predict.py');
-  const args = ['--home', homeTeam, '--away', awayTeam];
-  if (referee) {
-    args.push('--referee', referee);
-  }
+   const scriptPath = path.join(PROJECT_DIR, 'ml_predict.py');
+   const args = ['--home', homeTeam, '--away', awayTeam];
+   if (referee) {
+     args.push('--referee', referee);
+   }
 
-  execFile('python', [scriptPath, ...args], { timeout: 20000, cwd: PROJECT_DIR }, (err, stdout) => {
-    if (err) {
-      console.error('[ML] Errore ml_predict.py:', err.message);
-      return res.status(500).json({ error: 'Errore durante la predizione ML: ' + err.message });
-    }
+
+   
+    execFile(pythonExecutable, [scriptPath, ...args], { timeout: 40000, cwd: PROJECT_DIR, maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
+     if (err) {
+       console.error('[ML] Errore ml_predict.py:', err.message);
+       if (stdout) console.error('[ML] Stdout:', stdout);
+       return res.status(500).json({ error: 'Errore durante la predizione ML: ' + err.message, details: stdout });
+     }
     try {
       const raw = JSON.parse(stdout.trim());
       // ml_predict.py in batch mode sempre restituisce un array — unwrap il primo elemento
@@ -278,14 +285,15 @@ app.post('/ml-predict-batch', (req, res) => {
   const scriptPath = path.join(PROJECT_DIR, 'ml_predict.py');
   const args = ['--batch', JSON.stringify(matches)];
 
-  execFile('python', [scriptPath, ...args], { 
+  execFile(pythonExecutable, [scriptPath, ...args], { 
     timeout: 60000, 
     cwd: PROJECT_DIR,
     maxBuffer: 1024 * 1024 * 10 
   }, (err, stdout) => {
     if (err) {
       console.error('[ML-Batch] Errore:', err.message);
-      return res.status(500).json({ error: 'Errore durante la predizione Batch ML: ' + err.message });
+      if (stdout) console.error('[ML-Batch] Stdout:', stdout);
+      return res.status(500).json({ error: 'Errore durante la predizione Batch ML: ' + err.message, details: stdout });
     }
     try {
       const results = JSON.parse(stdout.trim());

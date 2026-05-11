@@ -12,8 +12,8 @@ set WINRATE=0.80
 set /p input_winrate="Win Rate Minimo [0.80 = 80%%]: "
 if not "!input_winrate!"=="" set WINRATE=!input_winrate!
 
-set BETS=14
-set /p input_bets="Scommesse Minime [14]: "
+set BETS=15
+set /p input_bets="Scommesse Minime [15]: "
 if not "!input_bets!"=="" set BETS=!input_bets!
 
 set QUOTA=1.60
