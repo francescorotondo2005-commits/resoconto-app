@@ -10,8 +10,11 @@ import os
 
 warnings.filterwarnings('ignore')
 
+# Sopprimi completamente i warning su stderr per evitare crash nel buffer Node.js
+sys.stderr = open(os.devnull, 'w')
+
 # Importa le funzioni condivise da ml_train_all
-from ml_train_all import STATS, get_stat, get_feature_cols, _avg
+from ml_train_all import STATS, get_stat, get_feature_cols, _avg, VARIANCE_MODELS_DIR
 
 # ─────────────────────────────────────────────────────────────
 # CALCOLO FEATURE PER LA PREDIZIONE
@@ -121,10 +124,19 @@ def predict_batch(matches):
 
         # Carica tutti i modelli una sola volta
         models = {}
+        var_models = {}
         models_dir = 'models'
         for s in STATS:
             models[f'{s}_casa']   = joblib.load(os.path.join(models_dir, f'rf_{s}_casa.joblib'))
             models[f'{s}_ospite'] = joblib.load(os.path.join(models_dir, f'rf_{s}_ospite.joblib'))
+            
+            # Carica i modelli di varianza (con fallback se non sono ancora stati addestrati)
+            try:
+                var_models[f'{s}_casa'] = joblib.load(os.path.join(VARIANCE_MODELS_DIR, f'xgb_{s}_casa_variance.joblib'))
+                var_models[f'{s}_ospite'] = joblib.load(os.path.join(VARIANCE_MODELS_DIR, f'xgb_{s}_ospite_variance.joblib'))
+            except FileNotFoundError:
+                var_models[f'{s}_casa'] = None
+                var_models[f'{s}_ospite'] = None
 
         batch_results = []
         for m in matches:
@@ -138,9 +150,18 @@ def predict_batch(matches):
             for s in STATS:
                 fcols = get_feature_cols(s)
                 X     = pd.DataFrame([{c: feats.get(c, 0) for c in fcols}])
+                
+                # Previsione EV
                 pred_c = float(models[f'{s}_casa'].predict(X)[0])
                 pred_o = float(models[f'{s}_ospite'].predict(X)[0])
                 match_preds[s] = {'casa': round(pred_c, 2), 'ospite': round(pred_o, 2)}
+                
+                # Previsione Varianza
+                if var_models[f'{s}_casa'] is not None and var_models[f'{s}_ospite'] is not None:
+                    var_c = float(var_models[f'{s}_casa'].predict(X)[0])
+                    var_o = float(var_models[f'{s}_ospite'].predict(X)[0])
+                    match_preds[s]['casa_var'] = round(var_c, 4)
+                    match_preds[s]['ospite_var'] = round(var_o, 4)
 
             batch_results.append(match_preds)
 

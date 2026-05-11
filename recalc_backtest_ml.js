@@ -50,11 +50,11 @@ async function start() {
   console.log(`2/5 Running ML Predictions for ${uniqueMatches.length} unique matches...`);
 
   // Write batch file
-  const batchFilePath = path.join(__dirname, 'temp_batch_ml.json');
+  const batchFilePath = path.join(__dirname, `temp_batch_ml_${Date.now()}.json`);
   fs.writeFileSync(batchFilePath, JSON.stringify(uniqueMatches));
 
   const mlPredictions = await new Promise((resolve, reject) => {
-    execFile('python', ['ml_predict.py', '--batch-file', 'temp_batch_ml.json'], { maxBuffer: 1024 * 1024 * 50 }, (err, stdout) => {
+    execFile('python', ['ml_predict.py', '--batch-file', batchFilePath], { maxBuffer: 1024 * 1024 * 50 }, (err, stdout) => {
       if (err) return reject(err);
       try {
         resolve(JSON.parse(stdout.trim()));
@@ -64,7 +64,9 @@ async function start() {
     });
   });
 
-  fs.unlinkSync(batchFilePath);
+  if (fs.existsSync(batchFilePath)) {
+    fs.unlinkSync(batchFilePath);
+  }
 
   // Map predictions back to matchKey
   const mlPredsByKey = {};

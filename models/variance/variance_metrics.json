@@ -1,0 +1,7 @@
+{
+  "gol": {
+    "variance_model_type": "xgb",
+    "variance_mae": 0.452,
+    "variance_trained_at": "2026-05-11T17:40:00"
+  }
+}

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getSetting } from '@/lib/db';
 import { EV_AVANZATO, SD_AVANZATO, CV_CALC } from '@/lib/engine';
-import { PROB_BINOM_NEG, PROB_1X2_IBRIDO } from '@/lib/probability';
+import { PROB_BINOM_NEG, PROB_1X2_IBRIDO, PROB_BINOM_NEG_ML, PROB_1X2_IBRIDO_ML } from '@/lib/probability';
 import { INDICE_ARBITRO_AVANZATO } from '@/lib/referee';
 import { getAllMarkets, getCategory, generateCustomMarket } from '@/lib/markets';
 
@@ -10,7 +10,7 @@ import { getAllMarkets, getCategory, generateCustomMarket } from '@/lib/markets'
 async function getMLPredictions(homeTeam, awayTeam, referee, league) {
   let mlPredictions = null;
   const SCRAPER_SERVICE_URL = process.env.SCRAPER_SERVICE_URL;
-  
+
   if (!SCRAPER_SERVICE_URL) {
     throw new Error('SCRAPER_SERVICE_URL non configurato in .env.local. Il Machine Learning è disabilitato.');
   }
@@ -202,7 +202,7 @@ export async function POST(request) {
       let minOdds = probability >= minProb ? (1 + minEdge) / probability : null;
       let isDiscarded = probability < minProb || probability >= maxProb;
 
-      // EV da Machine Learning e ricalcolo metriche a cascata
+      // EV da Machine Learning e ricalcolo metriche a cascata (LIVELLO 3)
       let evMl = null;
       let cvMl = null, probMl = null, fairOddsMl = null, minOddsMl = null, isDiscardedMl = isDiscarded;
 
@@ -215,22 +215,32 @@ export async function POST(request) {
           evMl = Math.round((mlPredictions[market.stat].casa + mlPredictions[market.stat].ospite) * 100) / 100;
         } else if (market.type === '1x2') {
           evMl = market.esito === '1' ? mlPredictions[market.stat].casa
-               : market.esito === '2' ? mlPredictions[market.stat].ospite
-               : Math.round((mlPredictions[market.stat].casa + mlPredictions[market.stat].ospite) / 2 * 100) / 100;
+            : market.esito === '2' ? mlPredictions[market.stat].ospite
+              : Math.round((mlPredictions[market.stat].casa + mlPredictions[market.stat].ospite) / 2 * 100) / 100;
         }
 
         if (evMl !== null) {
-          cvMl = CV_CALC(evMl, sd);
-          
+          // Estrazione delle Varianze ML (con fallback alla varianza storica sd*sd se mancano)
+          const varCasaMl = mlPredictions[market.stat].casa_var || Math.pow(evsd[market.stat].casa.sd, 2);
+          const varOspiteMl = mlPredictions[market.stat].ospite_var || Math.pow(evsd[market.stat].ospite.sd, 2);
+          const varTotaleMl = varCasaMl + varOspiteMl;
+
+          let varMl;
+          if (market.scope === 'casa') varMl = varCasaMl;
+          else if (market.scope === 'ospite') varMl = varOspiteMl;
+          else varMl = varTotaleMl;
+
+          // Ricalcolo del CV usando la nuova Varianza ML (radice quadrata della varianza)
+          cvMl = CV_CALC(evMl, Math.sqrt(varMl));
+
           if (market.type === 'over_under') {
-            probMl = PROB_BINOM_NEG(market.line, evMl, sd, market.direction);
+            // Chiamata alla nuova funzione ML che usa la Varianza dinamica
+            probMl = PROB_BINOM_NEG_ML(market.line, evMl, varMl, market.direction);
           } else if (market.type === '1x2') {
-            // Per 1x2 ML, ricalcoliamo la probabilità usando le previsioni ML di casa e ospite
+            // Chiamata alla nuova funzione 1X2 ML con varianze separate
             const evCasaMl = mlPredictions[market.stat].casa;
             const evOspiteMl = mlPredictions[market.stat].ospite;
-            const sdCasa = evsd[market.stat].casa.sd;
-            const sdOspite = evsd[market.stat].ospite.sd;
-            probMl = PROB_1X2_IBRIDO(evCasaMl, sdCasa, evOspiteMl, sdOspite, market.esito);
+            probMl = PROB_1X2_IBRIDO_ML(evCasaMl, varCasaMl, evOspiteMl, varOspiteMl, market.esito);
           }
 
           if (probMl !== null) {
@@ -239,9 +249,10 @@ export async function POST(request) {
             isDiscardedMl = probMl < minProb || probMl >= maxProb;
           }
         }
-        // Se ML è disponibile, sostituiamo le metriche classiche con quelle dell'Intelligenza Artificiale.
-        // Questo rende il Machine Learning il motore "Dominante" dell'app.
+
+        // Sostituzione delle metriche classiche con quelle ML dominant
         if (evMl !== null) ev = evMl;
+        if (varMl !== undefined) sd = Math.sqrt(varMl);
         if (cvMl !== null) cv = cvMl;
         if (probMl !== null) probability = probMl;
         if (fairOddsMl !== null) fairOdds = fairOddsMl;

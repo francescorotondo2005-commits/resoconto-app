@@ -27,6 +27,11 @@ TUNE_EVERY_N    = 50   # trigger automatico Optuna ogni N nuove partite
 N_OPTUNA_TRIALS = 30   # trial per statistica
 HOLDOUT_N       = 30   # ultime N partite per champion vs challenger
 
+# Directory for variance models
+VARIANCE_MODELS_DIR = os.path.join(MODELS_DIR, 'variance')
+VARIANCE_METRICS_PATH = os.path.join(VARIANCE_MODELS_DIR, 'variance_metrics.json')
+VARIANCE_BEST_PARAMS_PATH = os.path.join(VARIANCE_MODELS_DIR, 'variance_best_params.json')
+
 # ?????????????????????????????????????????????????????????????
 # HELPER: LETTURA STATISTICA DA RIGA
 # ?????????????????????????????????????????????????????????????
@@ -325,7 +330,7 @@ def champion_vs_challenger(ml_df, challenger_models, stat):
 
     better = mae_chal < mae_champ
     icon   = "[OK]" if better else "[--]"
-    print(f"  {icon} Champion MAE:{mae_champ:.3f}  Challenger MAE:{mae_chal:.3f}  >> {'CHALLENGER prende il posto' if better else 'Champion rimane'}")
+    print(f"  {icon} Champion MAE:{mae_champ:.4f}  Challenger MAE:{mae_chal:.4f}  >> {'CHALLENGER prende il posto' if better else 'Champion rimane'}")
     return better
 
 # ?????????????????????????????????????????????????????????????
@@ -365,7 +370,15 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
 
     os.makedirs(MODELS_DIR, exist_ok=True)
     kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    
+    # Carica le metriche esistenti per preservare i Champion che vincono
     metrics = {}
+    if os.path.exists(METRICS_PATH):
+        try:
+            with open(METRICS_PATH, 'r') as f:
+                metrics = json.load(f)
+        except Exception:
+            pass
 
     print(f"\n{'='*60}")
     print(f" TRAINING MODELLI ({len(ml_df)} partite valide)")
@@ -398,46 +411,127 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
             params = {}
             print(f"  K-Fold -> RF:{results['rf']:.3f} | XGB:{results['xgb']:.3f} | HGB:{results['hgb']:.3f} -> {mt.upper()} vince")
 
-        # Addestra challenger su TUTTI i dati
-        chal_c = build_model(mt, params).fit(X, yc)
-        chal_o = build_model(mt, params).fit(X, yo)
+        # Addestra challenger su TUTTI i dati per la massima precisione
+        chal_c_final = build_model(mt, params).fit(X, yc)
+        chal_o_final = build_model(mt, params).fit(X, yo)
 
         # Champion vs Challenger
         print(f"  Champion vs Challenger (holdout ultime {HOLDOUT_N} partite):")
-        challenger_wins = champion_vs_challenger(ml_df, (chal_c, chal_o), stat)
+        challenger_wins = champion_vs_challenger(ml_df, (chal_c_final, chal_o_final), stat)
 
         if challenger_wins:
-            joblib.dump(chal_c, os.path.join(MODELS_DIR, f'rf_{stat}_casa.joblib'))
-            joblib.dump(chal_o, os.path.join(MODELS_DIR, f'rf_{stat}_ospite.joblib'))
+            joblib.dump(chal_c_final, os.path.join(MODELS_DIR, f'rf_{stat}_casa.joblib'))
+            joblib.dump(chal_o_final, os.path.join(MODELS_DIR, f'rf_{stat}_ospite.joblib'))
 
-        # Calcola MAE finale (K-Fold su tutto il dataset)
-        maes_final = []
-        for tr, te in kf.split(X):
-            mc = build_model(mt, params).fit(X.iloc[tr], yc.iloc[tr])
-            mo = build_model(mt, params).fit(X.iloc[tr], yo.iloc[tr])
-            maes_final.append((mean_absolute_error(yc.iloc[te], mc.predict(X.iloc[te])) +
-                                mean_absolute_error(yo.iloc[te], mo.predict(X.iloc[te]))) / 2)
+            # Calcola MAE finale del nuovo Champion (K-Fold su tutto il dataset)
+            maes_final = []
+            for tr, te in kf.split(X):
+                mc = build_model(mt, params).fit(X.iloc[tr], yc.iloc[tr])
+                mo = build_model(mt, params).fit(X.iloc[tr], yo.iloc[tr])
+                maes_final.append((mean_absolute_error(yc.iloc[te], mc.predict(X.iloc[te])) +
+                                    mean_absolute_error(yo.iloc[te], mo.predict(X.iloc[te]))) / 2)
+            
+            mae_final = float(np.mean(maes_final))
+            metrics[stat] = {
+                'model_type':  mt,
+                'mae':         round(mae_final, 4),
+                'champion_updated': True,
+                'trained_at':  datetime.now().isoformat(),
+                'n_samples':   len(ml_df)
+            }
+        else:
+            # Il Champion ha vinto, manteniamo le sue metriche ma aggiorniamo lo status
+            if stat in metrics:
+                metrics[stat]['champion_updated'] = False
+                metrics[stat]['n_samples'] = len(ml_df)
+            else:
+                # Fallback di sicurezza se non c'era metrica vecchia
+                metrics[stat] = {
+                    'model_type': mt, 'mae': 0.0, 'champion_updated': False,
+                    'trained_at': datetime.now().isoformat(), 'n_samples': len(ml_df)
+                }
 
-        mae_final = float(np.mean(maes_final))
-        metrics[stat] = {
-            'model_type':  mt,
-            'mae':         round(mae_final, 4),
-            'champion_updated': challenger_wins,
-            'trained_at':  datetime.now().isoformat(),
-            'n_samples':   len(ml_df)
+        # ===== MODEL B: Variance Predictor (NEW) =====
+        print(f"  Training Variance Predictor for {stat}...")
+
+        # Calculate predictions from Model A to get residuals
+        pred_c = chal_c_final.predict(X)
+        pred_o = chal_o_final.predict(X)
+
+        # Calculate squared residuals (our target for variance model)
+        var_yc = (yc - pred_c) ** 2  # Squared residuals for home
+        var_yo = (yo - pred_o) ** 2  # Squared residuals for away
+
+        # Use XGBoost for variance prediction as requested
+        var_params = {
+            'n_estimators': 100,
+            'max_depth': 4,
+            'learning_rate': 0.05,
+            'subsample': 0.8,
+            'colsample_bytree': 0.8,
+            'random_state': 42,
+            'n_jobs': -1,
+            'verbosity': 0
         }
+
+        # Train variance models
+        var_chal_c_final = xgb.XGBRegressor(**var_params).fit(X, var_yc)
+        var_chal_o_final = xgb.XGBRegressor(**var_params).fit(X, var_yo)
+
+        # Save variance models
+        joblib.dump(var_chal_c_final, os.path.join(VARIANCE_MODELS_DIR, f'xgb_{stat}_casa_variance.joblib'))
+        joblib.dump(var_chal_o_final, os.path.join(VARIANCE_MODELS_DIR, f'xgb_{stat}_ospite_variance.joblib'))
+
+        # Calculate variance MAE
+        var_mae_c = mean_absolute_error(var_yc, var_chal_c_final.predict(X))
+        var_mae_o = mean_absolute_error(var_yo, var_chal_o_final.predict(X))
+        var_mae_avg = (var_mae_c + var_mae_o) / 2
+
+        # Update metrics to include variance information
+        if stat in metrics:
+            metrics[stat]['variance_model_type'] = 'xgb'
+            metrics[stat]['variance_mae'] = round(var_mae_avg, 4)
+            metrics[stat]['variance_trained_at'] = datetime.now().isoformat()
+        else:
+            metrics[stat] = {
+                'model_type': mt,
+                'mae': 0.0,
+                'champion_updated': False,
+                'trained_at': datetime.now().isoformat(),
+                'n_samples': len(ml_df),
+                'variance_model_type': 'xgb',
+                'variance_mae': round(var_mae_avg, 4),
+                'variance_trained_at': datetime.now().isoformat()
+            }
+
+        print(f"  Variance Model MAE: {var_mae_avg:.4f}")
 
     # Salva metrics
     with open(METRICS_PATH, 'w') as f:
         json.dump(metrics, f, indent=2)
+
+    # Save variance metrics separately
+    variance_metrics = {}
+    for stat in STATS:
+        if stat in metrics and 'variance_mae' in metrics[stat]:
+            variance_metrics[stat] = {
+                'variance_model_type': metrics[stat]['variance_model_type'],
+                'variance_mae': metrics[stat]['variance_mae'],
+                'variance_trained_at': metrics[stat]['variance_trained_at']
+            }
+
+    with open(VARIANCE_METRICS_PATH, 'w') as f:
+        json.dump(variance_metrics, f, indent=2)
 
     print(f"\n{'='*60}")
     print(" RIEPILOGO FINALE")
     print(f"{'='*60}")
     for s, m in metrics.items():
         upd = "[NEW] aggiornato" if m['champion_updated'] else "[--] invariato"
-        print(f"  {s.upper():12s} | {m['model_type'].upper():3s} | MAE: {m['mae']:.3f} | {upd}")
+        var_info = f" | Var MAE: {m.get('variance_mae', 'N/A'):.3f}" if 'variance_mae' in m else ""
+        print(f"  {s.upper():12s} | {m['model_type'].upper():3s} | MAE: {m['mae']:.3f}{var_info} | {upd}")
     print(f"\n[OK] Completato. Metriche -> {METRICS_PATH}")
+    print(f"[OK] Variance Metriche -> {VARIANCE_METRICS_PATH}")
 
 # ?????????????????????????????????????????????????????????????
 # ENTRY POINT

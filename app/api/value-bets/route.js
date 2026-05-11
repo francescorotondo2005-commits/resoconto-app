@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getSetting } from '@/lib/db';
 import { parseMarketName, getMatchStatValue } from '@/lib/grading';
 import { EV_AVANZATO, SD_AVANZATO, CV_CALC } from '@/lib/engine';
-import { PROB_BINOM_NEG, PROB_1X2_IBRIDO } from '@/lib/probability';
+import { PROB_BINOM_NEG, PROB_1X2_IBRIDO, PROB_BINOM_NEG_ML, PROB_1X2_IBRIDO_ML } from '@/lib/probability';
 import { getCategory, generateCustomMarket, getAllMarkets } from '@/lib/markets';
 import { INDICE_ARBITRO_AVANZATO } from '@/lib/referee';
 import { calcHistorySummary, calcFormSummary, calcFormScore } from '@/lib/history';
@@ -33,7 +33,7 @@ async function getMLPredictions(homeTeam, awayTeam, referee, league) {
 export async function GET(request) {
   try {
     const db = await getDb();
-    
+
     // 1. Fetch all match_odds
     const oddsRes = await db.execute({
       sql: 'SELECT * FROM match_odds WHERE sportium IS NOT NULL OR sportbet IS NOT NULL',
@@ -89,15 +89,15 @@ export async function GET(request) {
       const [league, homeTeam, awayTeam] = matchKey.split('|');
       const groupData = oddsByMatch[matchKey];
       const matches = matchesByLeague[league];
-      
-      const matchFinished = matches.some(m => 
-        m.home_team === homeTeam && 
-        m.away_team === awayTeam && 
+
+      const matchFinished = matches.some(m =>
+        m.home_team === homeTeam &&
+        m.away_team === awayTeam &&
         new Date(m.created_at) > new Date(groupData.created_at)
       );
 
       if (matchFinished) continue;
-      
+
       validMatchKeys.push(matchKey);
       const pendingInfo = pendingMap[matchKey];
       const matchReferee = pendingInfo?.referee || null;
@@ -257,20 +257,33 @@ export async function GET(request) {
             evMl = Math.round((mlPredictions[marketDef.stat].casa + mlPredictions[marketDef.stat].ospite) * 100) / 100;
           } else if (marketDef.type === '1x2') {
             evMl = marketDef.esito === '1' ? mlPredictions[marketDef.stat].casa
-                 : marketDef.esito === '2' ? mlPredictions[marketDef.stat].ospite
-                 : Math.round((mlPredictions[marketDef.stat].casa + mlPredictions[marketDef.stat].ospite) / 2 * 100) / 100;
+              : marketDef.esito === '2' ? mlPredictions[marketDef.stat].ospite
+                : Math.round((mlPredictions[marketDef.stat].casa + mlPredictions[marketDef.stat].ospite) / 2 * 100) / 100;
           }
 
           if (evMl !== null) {
-            cvMl = CV_CALC(evMl, sd);
+            // 1. Estraiamo la Varianza dal Machine Learning. 
+            // Fallback: se il Python non la sta ancora inviando, usiamo la varianza storica (sd * sd)
+            const varCasaMl = mlPredictions[marketDef.stat].casa_var || Math.pow(evsd[marketDef.stat].casa.sd, 2);
+            const varOspiteMl = mlPredictions[marketDef.stat].ospite_var || Math.pow(evsd[marketDef.stat].ospite.sd, 2);
+            const varTotaleMl = varCasaMl + varOspiteMl;
+
+            let varMl;
+            if (marketDef.scope === 'casa') varMl = varCasaMl;
+            else if (marketDef.scope === 'ospite') varMl = varOspiteMl;
+            else varMl = varTotaleMl;
+
+            // Aggiorniamo il Coefficiente di Variazione (usando la radice della Varianza = Nuova SD)
+            cvMl = CV_CALC(evMl, Math.sqrt(varMl));
+
             if (marketDef.type === 'over_under') {
-              probMl = PROB_BINOM_NEG(marketDef.line, evMl, sd, marketDef.direction);
+              // 2. USIAMO LA NUOVA FUNZIONE ML (passando Varianza, non SD)
+              probMl = PROB_BINOM_NEG_ML(marketDef.line, evMl, varMl, marketDef.direction);
             } else if (marketDef.type === '1x2') {
+              // 3. USIAMO LA NUOVA FUNZIONE ML (passando le due Varianze separate)
               const evCasaMl = mlPredictions[marketDef.stat].casa;
               const evOspiteMl = mlPredictions[marketDef.stat].ospite;
-              const sdCasa = evsd[marketDef.stat].casa.sd;
-              const sdOspite = evsd[marketDef.stat].ospite.sd;
-              probMl = PROB_1X2_IBRIDO(evCasaMl, sdCasa, evOspiteMl, sdOspite, marketDef.esito);
+              probMl = PROB_1X2_IBRIDO_ML(evCasaMl, varCasaMl, evOspiteMl, varOspiteMl, marketDef.esito);
             }
 
             if (probMl !== null) {
@@ -279,6 +292,7 @@ export async function GET(request) {
             }
 
             ev = evMl;
+            if (varMl !== undefined) sd = Math.sqrt(varMl);
             cv = cvMl;
             probability = probMl;
             fairOdds = fairOddsMl;
@@ -290,7 +304,7 @@ export async function GET(request) {
         // Calculate Edge
         const sportiumEdge = mktRow.sportium ? (probability * mktRow.sportium) - 1 : -999;
         const sportbetEdge = mktRow.sportbet ? (probability * mktRow.sportbet) - 1 : -999;
-        
+
         let bestEdge = Math.max(sportiumEdge, sportbetEdge);
         let bestBook = null;
         let actualOdds = null;
@@ -307,7 +321,7 @@ export async function GET(request) {
 
         // We only care about edges strictly > 0 for Scanner AND Probability >= minProb
         if (bestEdge > 0 && probability >= minProb) {
-          
+
           // Calcolo Hist e Form usando le stesse logiche del backtest
           const parsed = parseMarketName(marketDef.name);
           let hist = null;
