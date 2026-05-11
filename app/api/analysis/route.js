@@ -8,12 +8,13 @@ import { getAllMarkets, getCategory, generateCustomMarket } from '@/lib/markets'
 // Helper: chiama il scraper-service locale (via ngrok) per le previsioni ML
 // Se SCRAPER_SERVICE_URL non è configurato o il servizio è offline, restituisce null (graceful degradation)
 async function getMLPredictions(homeTeam, awayTeam, referee, league) {
-  let mlPredictions = null;
-  const SCRAPER_SERVICE_URL = process.env.SCRAPER_SERVICE_URL;
+   let mlPredictions = null;
+   const SCRAPER_SERVICE_URL = process.env.SCRAPER_SERVICE_URL;
 
-  if (!SCRAPER_SERVICE_URL) {
-    throw new Error('SCRAPER_SERVICE_URL non configurato in .env.local. Il Machine Learning è disabilitato.');
-  }
+   if (!SCRAPER_SERVICE_URL) {
+     // Graceful degradation: return null to use classical predictions
+     return null;
+   }
 
   try {
     const mlUrl = SCRAPER_SERVICE_URL.replace(/\/$/, '') + '/ml-predict';
@@ -248,16 +249,16 @@ export async function POST(request) {
             minOddsMl = probMl >= minProb ? (1 + minEdge) / probMl : null;
             isDiscardedMl = probMl < minProb || probMl >= maxProb;
           }
-        }
 
-        // Sostituzione delle metriche classiche con quelle ML dominant
-        if (evMl !== null) ev = evMl;
-        if (varMl !== undefined) sd = Math.sqrt(varMl);
-        if (cvMl !== null) cv = cvMl;
-        if (probMl !== null) probability = probMl;
-        if (fairOddsMl !== null) fairOdds = fairOddsMl;
-        if (minOddsMl !== null) minOdds = minOddsMl;
-        if (mlPredictions && mlPredictions[market.stat]) isDiscarded = isDiscardedMl;
+          // Sostituzione delle metriche classiche con quelle ML dominant
+          if (evMl !== null) ev = evMl;
+          if (varMl !== undefined) sd = Math.sqrt(varMl);
+          if (cvMl !== null) cv = cvMl;
+          if (probMl !== null) probability = probMl;
+          if (fairOddsMl !== null) fairOdds = fairOddsMl;
+          if (minOddsMl !== null) minOdds = minOddsMl;
+          if (mlPredictions && mlPredictions[market.stat]) isDiscarded = isDiscardedMl;
+        }
       }
 
       results.push({
