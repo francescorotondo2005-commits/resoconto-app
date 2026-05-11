@@ -19,6 +19,9 @@ export default function EliteCombinationsPage() {
   const [lastGenerated, setLastGenerated] = useState(null);
   const [loadingFile, setLoadingFile] = useState(true);
 
+  // Sorting state
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'none' }); // 'asc', 'desc', 'none'
+
   // Carica l'URL ngrok dalle impostazioni (lo stesso del servizio scraper)
   useEffect(() => {
     fetch('/api/settings')
@@ -82,6 +85,41 @@ export default function EliteCombinationsPage() {
   const pct  = v => `${(v * 100).toFixed(1)}%`;
   const pct0 = v => `${(v * 100).toFixed(0)}%`;
 
+  const handleSort = (key) => {
+    let direction = 'desc';
+    if (sortConfig.key === key && sortConfig.direction === 'desc') {
+      direction = 'asc';
+    } else if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'none';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedCombinations = sortConfig.direction === 'none' 
+    ? combinations 
+    : [...combinations].sort((a, b) => {
+        let aVal, bVal;
+        if (sortConfig.key.startsWith('params.')) {
+            const paramKey = sortConfig.key.split('.')[1];
+            aVal = a.params[paramKey];
+            bVal = b.params[paramKey];
+        } else {
+            aVal = a[sortConfig.key];
+            bVal = b[sortConfig.key];
+        }
+
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+
+  const SortIcon = ({ columnKey }) => {
+    if (sortConfig.key !== columnKey) return <span style={{ opacity: 0.2, marginLeft: 4 }}>↕</span>;
+    if (sortConfig.direction === 'asc') return <span style={{ color: 'var(--accent-primary)', marginLeft: 4 }}>↑</span>;
+    if (sortConfig.direction === 'desc') return <span style={{ color: 'var(--accent-primary)', marginLeft: 4 }}>↓</span>;
+    return <span style={{ opacity: 0.2, marginLeft: 4 }}>↕</span>;
+  };
+
   return (
     <div className="app-layout">
       <Sidebar />
@@ -119,22 +157,22 @@ export default function EliteCombinationsPage() {
             <div className="table-container" style={{ maxHeight: '65vh', overflow: 'auto' }}>
               <table style={{ fontSize: 12 }}>
                 <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-card)', zIndex: 1 }}>
-                  <tr>
-                    <th>#</th>
-                    <th>Win Rate</th>
-                    <th>Yield</th>
-                    <th>Scommesse</th>
-                    <th>Profitto</th>
-                    <th>Edge Min</th>
-                    <th>Prob Min</th>
-                    <th>Media Stor.</th>
-                    <th>Singolo Stor.</th>
-                    <th>Media Forma</th>
-                    <th>Singolo Forma</th>
+                  <tr style={{ cursor: 'pointer', userSelect: 'none' }}>
+                    <th onClick={() => setSortConfig({ key: null, direction: 'none' })}>#</th>
+                    <th onClick={() => handleSort('winRate')}>Win Rate <SortIcon columnKey="winRate" /></th>
+                    <th onClick={() => handleSort('yieldPct')}>Yield <SortIcon columnKey="yieldPct" /></th>
+                    <th onClick={() => handleSort('total')}>Scommesse <SortIcon columnKey="total" /></th>
+                    <th onClick={() => handleSort('profit')}>Profitto <SortIcon columnKey="profit" /></th>
+                    <th onClick={() => handleSort('params.minEdge')}>Edge Min <SortIcon columnKey="params.minEdge" /></th>
+                    <th onClick={() => handleSort('params.minProb')}>Prob Min <SortIcon columnKey="params.minProb" /></th>
+                    <th onClick={() => handleSort('params.minHistAvg')}>Media Stor. <SortIcon columnKey="params.minHistAvg" /></th>
+                    <th onClick={() => handleSort('params.minHistSingle')}>Singolo Stor. <SortIcon columnKey="params.minHistSingle" /></th>
+                    <th onClick={() => handleSort('params.minFormAvg')}>Media Forma <SortIcon columnKey="params.minFormAvg" /></th>
+                    <th onClick={() => handleSort('params.minFormSingle')}>Singolo Forma <SortIcon columnKey="params.minFormSingle" /></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {combinations.map((c, i) => (
+                  {sortedCombinations.map((c, i) => (
                     <tr key={i}>
                       <td style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{i + 1}</td>
                       <td style={{ fontWeight: 800, color: c.winRate >= 0.90 ? 'var(--green)' : c.winRate >= 0.85 ? 'var(--accent-secondary)' : 'var(--text-primary)' }}>

@@ -165,7 +165,14 @@ export default function TrackerPage() {
 
     if (edge < minBacktestEdge) return false;
     if (prob < minBacktestProb) return false;
-    if (minOdds > 0 && odds < minOdds) return false;
+    
+    // Se la quota è 0, la mostriamo solo se il filtro è <= 1.00 (così vediamo tutto il DB)
+    if (minOdds > 1.00) {
+      if (odds < minOdds) return false;
+    } else if (minOdds > 0) {
+      // Se l'utente mette ad esempio 0.5, mostriamo solo chi ha quota o chi è 0
+      if (odds > 0 && odds < minOdds) return false;
+    }
     
     // Filtri avanzati Hist/Form (solo se attivati > 0)
     if (minHistAvg > 0 || minHistSingle > 0 || minFormAvg > 0 || minFormSingle > 0) {
