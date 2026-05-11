@@ -48,12 +48,18 @@ async function start() {
     const win = b.outcome === 'WIN';
     const profit = win ? (maxOdds - 1) : -1;
 
+    // Usiamo direttamente i valori pre-calcolati dal DB per massima coerenza con la Dashboard
+    const histScore = b.hist_score;
+    const formScore = b.form_home_pct !== null && b.form_away_pct !== null && b.form_home_gen_pct !== null && b.form_away_gen_pct !== null
+      ? (b.form_home_pct + b.form_away_pct + b.form_home_gen_pct + b.form_away_gen_pct) / 4
+      : null;
+
+    // Per i minimi (Sng) manteniamo il calcolo granulare
     const fParts = [];
     if (b.form_home_pct !== null) fParts.push(b.form_home_pct);
     if (b.form_away_pct !== null) fParts.push(b.form_away_pct);
     if (b.form_home_gen_pct !== null) fParts.push(b.form_home_gen_pct);
     if (b.form_away_gen_pct !== null) fParts.push(b.form_away_gen_pct);
-    const formScore = fParts.length > 0 ? fParts.reduce((a,v) => a+v, 0) / fParts.length : null;
     const fMin = fParts.length === 4 ? Math.min(...fParts) : null;
 
     const hParts = [];
@@ -61,11 +67,8 @@ async function start() {
     if (b.away_hist_pct !== null) hParts.push(b.away_hist_pct);
     if (b.home_hist_overall_pct !== null) hParts.push(b.home_hist_overall_pct);
     if (b.away_hist_overall_pct !== null) hParts.push(b.away_hist_overall_pct);
-    const hasRef = b.ref_hist_pct !== null;
-    if (hasRef) hParts.push(b.ref_hist_pct);
-    const histScore = hParts.length > 0 ? hParts.reduce((a,v) => a+v, 0) / hParts.length : null;
-    const hFullLen = hasRef ? 5 : 4;
-    const hMin = hParts.length === hFullLen ? Math.min(...hParts) : null;
+    if (b.ref_hist_pct !== null) hParts.push(b.ref_hist_pct);
+    const hMin = hParts.length >= 4 ? Math.min(...hParts) : null;
 
     bets.push({ win, profit, edge: b.best_edge || 0, prob: b.probability || 0,
       formScore, fMin, histScore, hMin });
