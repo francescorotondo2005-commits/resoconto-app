@@ -163,7 +163,8 @@ export default function TrackerPage() {
     const prob = b.probability ?? 0;
     const odds = Math.max(b.sportium || 0, b.sportbet || 0);
 
-    if (edge < minBacktestEdge) return false;
+    // Applichiamo il filtro edge solo se l'utente lo alza sopra lo 0 o se l'edge non è quello di errore (-1)
+    if (minBacktestEdge > 0 && edge < minBacktestEdge) return false;
     if (prob < minBacktestProb) return false;
     
     // Se la quota è 0, la mostriamo solo se il filtro è <= 1.00 (così vediamo tutto il DB)
