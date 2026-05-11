@@ -157,7 +157,51 @@ export default function TrackerPage() {
     bankrollHistory.push(runningTotal);
   }
 
-  const filteredBacktestBets = backtestBets;
+  const filteredBacktestBets = backtestBets.filter(b => {
+    // Se il valore è null o undefined, lo trattiamo come 0 per non rompere il filtro
+    const edge = b.best_edge ?? 0;
+    const prob = b.probability ?? 0;
+    const odds = Math.max(b.sportium || 0, b.sportbet || 0);
+
+    if (edge < minBacktestEdge) return false;
+    if (prob < minBacktestProb) return false;
+    if (minOdds > 0 && odds < minOdds) return false;
+    
+    // Filtri avanzati Hist/Form (solo se attivati > 0)
+    if (minHistAvg > 0 || minHistSingle > 0 || minFormAvg > 0 || minFormSingle > 0) {
+      // Calcolo Form Score
+      let formScore = null;
+      const fParts = [];
+      if (b.form_home_pct !== null) fParts.push(b.form_home_pct);
+      if (b.form_away_pct !== null) fParts.push(b.form_away_pct);
+      if (b.form_home_gen_pct !== null) fParts.push(b.form_home_gen_pct);
+      if (b.form_away_gen_pct !== null) fParts.push(b.form_away_gen_pct);
+      if (fParts.length > 0) formScore = fParts.reduce((a,v) => a+v, 0) / fParts.length;
+
+      if (minFormAvg > 0 && (formScore === null || formScore < minFormAvg)) return false;
+      if (minFormSingle > 0) {
+        if (fParts.length !== 4) return false;
+        if (Math.min(...fParts) < minFormSingle) return false;
+      }
+
+      // Calcolo Hist Score
+      let histScore = b.hist_score;
+      if (minHistAvg > 0 && (histScore === null || histScore < minHistAvg)) return false;
+      if (minHistSingle > 0) {
+        const hParts = [];
+        if (b.home_hist_pct !== null) hParts.push(b.home_hist_pct);
+        if (b.away_hist_pct !== null) hParts.push(b.away_hist_pct);
+        if (b.home_hist_overall_pct !== null) hParts.push(b.home_hist_overall_pct);
+        if (b.away_hist_overall_pct !== null) hParts.push(b.away_hist_overall_pct);
+        if (b.ref_hist_pct !== null) hParts.push(b.ref_hist_pct);
+        
+        if (hParts.length < 4) return false;
+        if (Math.min(...hParts) < minHistSingle) return false;
+      }
+    }
+
+    return true;
+  });
   
   const backtestHistory = [];
   let btTotal = 0;
@@ -183,7 +227,7 @@ export default function TrackerPage() {
       <Sidebar />
       <main className="main-content">
         <div className="page-header" style={{ marginBottom: 20 }}>
-          <h1 className="page-title">📈 Tracker & Backtest ({backtestBets.length} totali riceve)</h1>
+          <h1 className="page-title">📈 Tracker & Backtest</h1>
           <p className="page-subtitle">Monitora le tue giocate e le performance del modello</p>
         </div>
 
