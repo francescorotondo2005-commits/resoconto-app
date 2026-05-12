@@ -50,16 +50,14 @@ async function start() {
 
     // Usiamo direttamente i valori pre-calcolati dal DB per massima coerenza con la Dashboard
     const histScore = b.hist_score;
-    const formScore = b.form_home_pct !== null && b.form_away_pct !== null && b.form_home_gen_pct !== null && b.form_away_gen_pct !== null
-      ? (b.form_home_pct + b.form_away_pct + b.form_home_gen_pct + b.form_away_gen_pct) / 4
-      : null;
-
-    // Per i minimi (Sng) manteniamo il calcolo granulare
+    // Calcolo Form Score flessibile (come in Dashboard)
     const fParts = [];
     if (b.form_home_pct !== null) fParts.push(b.form_home_pct);
     if (b.form_away_pct !== null) fParts.push(b.form_away_pct);
     if (b.form_home_gen_pct !== null) fParts.push(b.form_home_gen_pct);
     if (b.form_away_gen_pct !== null) fParts.push(b.form_away_gen_pct);
+    
+    const formScore = fParts.length > 0 ? fParts.reduce((a,v) => a+v, 0) / fParts.length : null;
     const fMin = fParts.length === 4 ? Math.min(...fParts) : null;
 
     const hParts = [];
