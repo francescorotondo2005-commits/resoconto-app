@@ -99,7 +99,9 @@ async function start() {
       if (afterProb.length < MIN_BETS) break;
 
       for (const minHistAvg of histAvgThresholds) {
-        const afterHistAvg = afterProb.filter(b => b.histScore !== null && b.histScore >= (minHistAvg - eps));
+        const afterHistAvg = minHistAvg === 0
+          ? afterProb
+          : afterProb.filter(b => b.histScore !== null && b.histScore >= (minHistAvg - eps));
         if (afterHistAvg.length < MIN_BETS) break;
 
         for (const minHistSingle of histSingThresholds) {
@@ -109,7 +111,9 @@ async function start() {
           if (afterHistSingle.length < MIN_BETS) break;
 
           for (const minFormAvg of formAvgThresholds) {
-            const afterFormAvg = afterHistSingle.filter(b => b.formScore !== null && b.formScore >= (minFormAvg - eps));
+            const afterFormAvg = minFormAvg === 0
+              ? afterHistSingle
+              : afterHistSingle.filter(b => b.formScore !== null && b.formScore >= (minFormAvg - eps));
             if (afterFormAvg.length < MIN_BETS) break;
 
             for (const minFormSingle of formSingThresholds) {
