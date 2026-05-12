@@ -1,6 +1,21 @@
 {
   "combinations": [
     {
+      "total": 16,
+      "wins": 15,
+      "winRate": 0.9375,
+      "profit": 9.599999999999998,
+      "yieldPct": 0.5999999999999999,
+      "params": {
+        "minEdge": 0.09,
+        "minProb": 0.5,
+        "minHistAvg": 0.7,
+        "minHistSingle": 0.63,
+        "minFormAvg": 0.8,
+        "minFormSingle": 0
+      }
+    },
+    {
       "total": 15,
       "wins": 14,
       "winRate": 0.9333333333333333,
@@ -9,7 +24,7 @@
       "params": {
         "minEdge": 0.09,
         "minProb": 0.5,
-        "minHistAvg": 0.7,
+        "minHistAvg": 0.71,
         "minHistSingle": 0.63,
         "minFormAvg": 0.8,
         "minFormSingle": 0
@@ -73,6 +88,21 @@
         "minHistSingle": 0,
         "minFormAvg": 0.85,
         "minFormSingle": 0
+      }
+    },
+    {
+      "total": 18,
+      "wins": 16,
+      "winRate": 0.8888888888888888,
+      "profit": 9.459999999999999,
+      "yieldPct": 0.5255555555555556,
+      "params": {
+        "minEdge": 0.09,
+        "minProb": 0.5,
+        "minHistAvg": 0.7,
+        "minHistSingle": 0.63,
+        "minFormAvg": 0.75,
+        "minFormSingle": 0.6
       }
     },
     {
@@ -219,7 +249,7 @@
       "params": {
         "minEdge": 0.09,
         "minProb": 0.5,
-        "minHistAvg": 0.7,
+        "minHistAvg": 0.71,
         "minHistSingle": 0.63,
         "minFormAvg": 0.75,
         "minFormSingle": 0.6
@@ -687,6 +717,21 @@
         "minHistAvg": 0.68,
         "minHistSingle": 0.52,
         "minFormAvg": 0.85,
+        "minFormSingle": 0
+      }
+    },
+    {
+      "total": 15,
+      "wins": 13,
+      "winRate": 0.8666666666666667,
+      "profit": 7.33,
+      "yieldPct": 0.4886666666666667,
+      "params": {
+        "minEdge": 0,
+        "minProb": 0.5,
+        "minHistAvg": 0,
+        "minHistSingle": 0,
+        "minFormAvg": 0.9,
         "minFormSingle": 0
       }
     },
@@ -1842,6 +1887,21 @@
         "minHistAvg": 0.66,
         "minHistSingle": 0.51,
         "minFormAvg": 0.85,
+        "minFormSingle": 0
+      }
+    },
+    {
+      "total": 19,
+      "wins": 16,
+      "winRate": 0.8421052631578947,
+      "profit": 8.259999999999998,
+      "yieldPct": 0.43473684210526303,
+      "params": {
+        "minEdge": 0.09,
+        "minProb": 0.5,
+        "minHistAvg": 0.7,
+        "minHistSingle": 0.62,
+        "minFormAvg": 0.8,
         "minFormSingle": 0
       }
     },
@@ -3394,6 +3454,21 @@
       "total": 23,
       "wins": 19,
       "winRate": 0.8260869565217391,
+      "profit": 10.309999999999999,
+      "yieldPct": 0.4482608695652173,
+      "params": {
+        "minEdge": 0.09,
+        "minProb": 0.5,
+        "minHistAvg": 0.7,
+        "minHistSingle": 0.62,
+        "minFormAvg": 0.75,
+        "minFormSingle": 0.6
+      }
+    },
+    {
+      "total": 23,
+      "wins": 19,
+      "winRate": 0.8260869565217391,
       "profit": 10.030000000000001,
       "yieldPct": 0.4360869565217392,
       "params": {
@@ -4384,6 +4459,21 @@
       "total": 28,
       "wins": 23,
       "winRate": 0.8214285714285714,
+      "profit": 12.129999999999995,
+      "yieldPct": 0.43321428571428555,
+      "params": {
+        "minEdge": 0.09,
+        "minProb": 0.5,
+        "minHistAvg": 0.7,
+        "minHistSingle": 0.59,
+        "minFormAvg": 0.75,
+        "minFormSingle": 0.6
+      }
+    },
+    {
+      "total": 28,
+      "wins": 23,
+      "winRate": 0.8214285714285714,
       "profit": 12.040000000000003,
       "yieldPct": 0.4300000000000001,
       "params": {
@@ -4549,6 +4639,21 @@
       "total": 28,
       "wins": 23,
       "winRate": 0.8214285714285714,
+      "profit": 11.299999999999997,
+      "yieldPct": 0.40357142857142847,
+      "params": {
+        "minEdge": 0.09,
+        "minProb": 0.5,
+        "minHistAvg": 0.7,
+        "minHistSingle": 0.54,
+        "minFormAvg": 0.8,
+        "minFormSingle": 0
+      }
+    },
+    {
+      "total": 28,
+      "wins": 23,
+      "winRate": 0.8214285714285714,
       "profit": 11.290000000000003,
       "yieldPct": 0.4032142857142858,
       "params": {
@@ -4629,7 +4734,7 @@
       "params": {
         "minEdge": 0.09,
         "minProb": 0.5,
-        "minHistAvg": 0.7,
+        "minHistAvg": 0.71,
         "minHistSingle": 0.62,
         "minFormAvg": 0.75,
         "minFormSingle": 0.6
@@ -4648,6 +4753,21 @@
         "minHistSingle": 0,
         "minFormAvg": 0.85,
         "minFormSingle": 0
+      }
+    },
+    {
+      "total": 22,
+      "wins": 18,
+      "winRate": 0.8181818181818182,
+      "profit": 9.209999999999999,
+      "yieldPct": 0.4186363636363636,
+      "params": {
+        "minEdge": 0.09,
+        "minProb": 0.5,
+        "minHistAvg": 0.7,
+        "minHistSingle": 0.63,
+        "minFormAvg": 0.65,
+        "minFormSingle": 0.6
       }
     },
     {
@@ -5049,7 +5169,7 @@
       "params": {
         "minEdge": 0.09,
         "minProb": 0.5,
-        "minHistAvg": 0.7,
+        "minHistAvg": 0.71,
         "minHistSingle": 0.59,
         "minFormAvg": 0.8,
         "minFormSingle": 0
@@ -5169,7 +5289,7 @@
       "params": {
         "minEdge": 0.09,
         "minProb": 0.5,
-        "minHistAvg": 0.7,
+        "minHistAvg": 0.71,
         "minHistSingle": 0.59,
         "minFormAvg": 0.75,
         "minFormSingle": 0.6
@@ -5359,6 +5479,21 @@
       "total": 27,
       "wins": 22,
       "winRate": 0.8148148148148148,
+      "profit": 10.679999999999996,
+      "yieldPct": 0.39555555555555544,
+      "params": {
+        "minEdge": 0.09,
+        "minProb": 0.5,
+        "minHistAvg": 0.7,
+        "minHistSingle": 0.56,
+        "minFormAvg": 0.8,
+        "minFormSingle": 0
+      }
+    },
+    {
+      "total": 27,
+      "wins": 22,
+      "winRate": 0.8148148148148148,
       "profit": 10.670000000000002,
       "yieldPct": 0.39518518518518525,
       "params": {
@@ -5453,7 +5588,7 @@
       "yieldPct": 0.388148148148148,
       "params": {
         "minEdge": 0.09,
-        "minProb": 0.5,
+        "minProb": 0.6,
         "minHistAvg": 0.7,
         "minHistSingle": 0.54,
         "minFormAvg": 0.8,
@@ -5539,6 +5674,21 @@
       "total": 32,
       "wins": 26,
       "winRate": 0.8125,
+      "profit": 13.399999999999995,
+      "yieldPct": 0.41874999999999984,
+      "params": {
+        "minEdge": 0.09,
+        "minProb": 0.5,
+        "minHistAvg": 0.7,
+        "minHistSingle": 0.57,
+        "minFormAvg": 0.75,
+        "minFormSingle": 0.6
+      }
+    },
+    {
+      "total": 32,
+      "wins": 26,
+      "winRate": 0.8125,
       "profit": 13.009999999999998,
       "yieldPct": 0.40656249999999994,
       "params": {
@@ -5548,6 +5698,21 @@
         "minHistSingle": 0.59,
         "minFormAvg": 0.75,
         "minFormSingle": 0.6
+      }
+    },
+    {
+      "total": 32,
+      "wins": 26,
+      "winRate": 0.8125,
+      "profit": 12.919999999999998,
+      "yieldPct": 0.40374999999999994,
+      "params": {
+        "minEdge": 0.09,
+        "minProb": 0.5,
+        "minHistAvg": 0.68,
+        "minHistSingle": 0.54,
+        "minFormAvg": 0.8,
+        "minFormSingle": 0
       }
     },
     {
@@ -6304,6 +6469,21 @@
       "total": 21,
       "wins": 17,
       "winRate": 0.8095238095238095,
+      "profit": 8.309999999999999,
+      "yieldPct": 0.39571428571428563,
+      "params": {
+        "minEdge": 0.09,
+        "minProb": 0.5,
+        "minHistAvg": 0.7,
+        "minHistSingle": 0.63,
+        "minFormAvg": 0.7,
+        "minFormSingle": 0.6
+      }
+    },
+    {
+      "total": 21,
+      "wins": 17,
+      "winRate": 0.8095238095238095,
       "profit": 8.27,
       "yieldPct": 0.3938095238095238,
       "params": {
@@ -6424,14 +6604,14 @@
       "total": 21,
       "wins": 17,
       "winRate": 0.8095238095238095,
-      "profit": 7.99,
+      "profit": 7.989999999999999,
       "yieldPct": 0.38047619047619047,
       "params": {
         "minEdge": 0.09,
-        "minProb": 0.67,
+        "minProb": 0.5,
         "minHistAvg": 0,
-        "minHistSingle": 0,
-        "minFormAvg": 0.85,
+        "minHistSingle": 0.62,
+        "minFormAvg": 0.8,
         "minFormSingle": 0
       }
     },
@@ -6594,7 +6774,7 @@
       "params": {
         "minEdge": 0.09,
         "minProb": 0.5,
-        "minHistAvg": 0.7,
+        "minHistAvg": 0.71,
         "minHistSingle": 0.61,
         "minFormAvg": 0.8,
         "minFormSingle": 0
@@ -6673,6 +6853,21 @@
         "minHistSingle": 0.54,
         "minFormAvg": 0.85,
         "minFormSingle": 0
+      }
+    },
+    {
+      "total": 26,
+      "wins": 21,
+      "winRate": 0.8076923076923077,
+      "profit": 10.659999999999997,
+      "yieldPct": 0.40999999999999986,
+      "params": {
+        "minEdge": 0.09,
+        "minProb": 0.5,
+        "minHistAvg": 0.7,
+        "minHistSingle": 0.61,
+        "minFormAvg": 0.75,
+        "minFormSingle": 0.6
       }
     },
     {
@@ -6968,7 +7163,7 @@
       "yieldPct": 0.3792307692307692,
       "params": {
         "minEdge": 0.09,
-        "minProb": 0.5,
+        "minProb": 0.6,
         "minHistAvg": 0.7,
         "minHistSingle": 0.56,
         "minFormAvg": 0.8,
@@ -7208,7 +7403,7 @@
       "yieldPct": 0.4058064516129031,
       "params": {
         "minEdge": 0.09,
-        "minProb": 0.5,
+        "minProb": 0.6,
         "minHistAvg": 0.7,
         "minHistSingle": 0.57,
         "minFormAvg": 0.75,
@@ -7249,6 +7444,21 @@
       "total": 31,
       "wins": 25,
       "winRate": 0.8064516129032258,
+      "profit": 12.299999999999997,
+      "yieldPct": 0.396774193548387,
+      "params": {
+        "minEdge": 0.09,
+        "minProb": 0.5,
+        "minHistAvg": 0.65,
+        "minHistSingle": 0.56,
+        "minFormAvg": 0.8,
+        "minFormSingle": 0
+      }
+    },
+    {
+      "total": 31,
+      "wins": 25,
+      "winRate": 0.8064516129032258,
       "profit": 12.189999999999998,
       "yieldPct": 0.3932258064516128,
       "params": {
@@ -7267,8 +7477,23 @@
       "profit": 12.099999999999998,
       "yieldPct": 0.39032258064516123,
       "params": {
-        "minEdge": 0.09,
+        "minEdge": 0.1,
         "minProb": 0.5,
+        "minHistAvg": 0.68,
+        "minHistSingle": 0.54,
+        "minFormAvg": 0.8,
+        "minFormSingle": 0
+      }
+    },
+    {
+      "total": 31,
+      "wins": 25,
+      "winRate": 0.8064516129032258,
+      "profit": 11.899999999999999,
+      "yieldPct": 0.38387096774193546,
+      "params": {
+        "minEdge": 0.09,
+        "minProb": 0.56,
         "minHistAvg": 0.68,
         "minHistSingle": 0.54,
         "minFormAvg": 0.8,
@@ -7358,6 +7583,21 @@
       "yieldPct": 0.37750000000000006,
       "params": {
         "minEdge": 0,
+        "minProb": 0.5,
+        "minHistAvg": 0.68,
+        "minHistSingle": 0.51,
+        "minFormAvg": 0.8,
+        "minFormSingle": 0
+      }
+    },
+    {
+      "total": 35,
+      "wins": 28,
+      "winRate": 0.8,
+      "profit": 13.54,
+      "yieldPct": 0.38685714285714284,
+      "params": {
+        "minEdge": 0.09,
         "minProb": 0.5,
         "minHistAvg": 0.68,
         "minHistSingle": 0.51,
@@ -7537,9 +7777,9 @@
       "profit": 11.479999999999997,
       "yieldPct": 0.38266666666666654,
       "params": {
-        "minEdge": 0.09,
+        "minEdge": 0.1,
         "minProb": 0.5,
-        "minHistAvg": 0.65,
+        "minHistAvg": 0.61,
         "minHistSingle": 0.56,
         "minFormAvg": 0.8,
         "minFormSingle": 0
@@ -7594,6 +7834,21 @@
       "total": 30,
       "wins": 24,
       "winRate": 0.8,
+      "profit": 11.279999999999998,
+      "yieldPct": 0.37599999999999995,
+      "params": {
+        "minEdge": 0.09,
+        "minProb": 0.56,
+        "minHistAvg": 0.65,
+        "minHistSingle": 0.56,
+        "minFormAvg": 0.8,
+        "minFormSingle": 0
+      }
+    },
+    {
+      "total": 30,
+      "wins": 24,
+      "winRate": 0.8,
       "profit": 11.11,
       "yieldPct": 0.3703333333333333,
       "params": {
@@ -7613,8 +7868,23 @@
       "yieldPct": 0.3693333333333333,
       "params": {
         "minEdge": 0.09,
-        "minProb": 0.56,
+        "minProb": 0.6,
         "minHistAvg": 0.68,
+        "minHistSingle": 0.54,
+        "minFormAvg": 0.8,
+        "minFormSingle": 0
+      }
+    },
+    {
+      "total": 30,
+      "wins": 24,
+      "winRate": 0.8,
+      "profit": 11.029999999999998,
+      "yieldPct": 0.3676666666666666,
+      "params": {
+        "minEdge": 0.09,
+        "minProb": 0.5,
+        "minHistAvg": 0.69,
         "minHistSingle": 0.54,
         "minFormAvg": 0.8,
         "minFormSingle": 0
@@ -7646,6 +7916,21 @@
         "minProb": 0.5,
         "minHistAvg": 0.7,
         "minHistSingle": 0.56,
+        "minFormAvg": 0.8,
+        "minFormSingle": 0
+      }
+    },
+    {
+      "total": 30,
+      "wins": 24,
+      "winRate": 0.8,
+      "profit": 10.919999999999998,
+      "yieldPct": 0.36399999999999993,
+      "params": {
+        "minEdge": 0.09,
+        "minProb": 0.5,
+        "minHistAvg": 0.7,
+        "minHistSingle": 0.51,
         "minFormAvg": 0.8,
         "minFormSingle": 0
       }
@@ -7714,12 +7999,27 @@
       "total": 25,
       "wins": 20,
       "winRate": 0.8,
+      "profit": 10.04,
+      "yieldPct": 0.40159999999999996,
+      "params": {
+        "minEdge": 0.09,
+        "minProb": 0.5,
+        "minHistAvg": 0,
+        "minHistSingle": 0.62,
+        "minFormAvg": 0.75,
+        "minFormSingle": 0.6
+      }
+    },
+    {
+      "total": 25,
+      "wins": 20,
+      "winRate": 0.8,
       "profit": 9.839999999999996,
       "yieldPct": 0.39359999999999984,
       "params": {
         "minEdge": 0.09,
         "minProb": 0.5,
-        "minHistAvg": 0.7,
+        "minHistAvg": 0.71,
         "minHistSingle": 0.61,
         "minFormAvg": 0.75,
         "minFormSingle": 0.6
@@ -7909,6 +8209,21 @@
       "total": 25,
       "wins": 20,
       "winRate": 0.8,
+      "profit": 9.37,
+      "yieldPct": 0.37479999999999997,
+      "params": {
+        "minEdge": 0.09,
+        "minProb": 0.5,
+        "minHistAvg": 0.7,
+        "minHistSingle": 0.63,
+        "minFormAvg": 0.7,
+        "minFormSingle": 0
+      }
+    },
+    {
+      "total": 25,
+      "wins": 20,
+      "winRate": 0.8,
       "profit": 9.36,
       "yieldPct": 0.37439999999999996,
       "params": {
@@ -7942,9 +8257,9 @@
       "profit": 9.339999999999996,
       "yieldPct": 0.3735999999999999,
       "params": {
-        "minEdge": 0.09,
+        "minEdge": 0.1,
         "minProb": 0.5,
-        "minHistAvg": 0.65,
+        "minHistAvg": 0,
         "minHistSingle": 0.59,
         "minFormAvg": 0.8,
         "minFormSingle": 0
@@ -8494,15 +8809,15 @@
       "total": 20,
       "wins": 16,
       "winRate": 0.8,
-      "profit": 7.45,
-      "yieldPct": 0.3725,
+      "profit": 7.450000000000002,
+      "yieldPct": 0.3725000000000001,
       "params": {
-        "minEdge": 0.15,
+        "minEdge": 0.09,
         "minProb": 0.5,
         "minHistAvg": 0.7,
-        "minHistSingle": 0.56,
-        "minFormAvg": 0.8,
-        "minFormSingle": 0
+        "minHistSingle": 0.64,
+        "minFormAvg": 0.7,
+        "minFormSingle": 0.6
       }
     },
     {
@@ -8723,7 +9038,7 @@
       "yieldPct": 0.35849999999999993,
       "params": {
         "minEdge": 0.09,
-        "minProb": 0.5,
+        "minProb": 0.6,
         "minHistAvg": 0,
         "minHistSingle": 0.62,
         "minFormAvg": 0.8,
@@ -9556,5 +9871,5 @@
       }
     }
   ],
-  "generatedAt": "2026-05-12T00:31:34.552Z"
+  "generatedAt": "2026-05-12T00:45:02.178Z"
 }
