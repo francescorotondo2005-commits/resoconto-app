@@ -158,10 +158,10 @@ export default function TrackerPage() {
   }
 
   const filteredBacktestBets = backtestBets.filter(b => {
-    // Se il valore è null o undefined, lo trattiamo come 0 per non rompere il filtro
-    const edge = b.best_edge ?? 0;
-    const prob = b.probability ?? 0;
-    const odds = Math.max(b.sportium || 0, b.sportbet || 0);
+    // Arrotondiamo alla seconda cifra decimale per coerenza totale con lo script di calcolo
+    const edge = Math.round((b.best_edge ?? 0) * 100) / 100;
+    const prob = Math.round((b.probability ?? 0) * 100) / 100;
+    const odds = Math.round((Math.max(b.sportium || 0, b.sportbet || 0)) * 100) / 100;
 
     // Applichiamo il filtro edge solo se l'utente lo alza sopra lo 0 o se l'edge non è quello di errore (-1)
     if (minBacktestEdge > 0 && edge < minBacktestEdge) return false;
@@ -184,7 +184,11 @@ export default function TrackerPage() {
       if (b.form_away_pct !== null) fParts.push(b.form_away_pct);
       if (b.form_home_gen_pct !== null) fParts.push(b.form_home_gen_pct);
       if (b.form_away_gen_pct !== null) fParts.push(b.form_away_gen_pct);
-      if (fParts.length > 0) formScore = fParts.reduce((a,v) => a+v, 0) / fParts.length;
+
+      if (fParts.length > 0) {
+        formScore = fParts.reduce((a,v) => a+v, 0) / fParts.length;
+        formScore = Math.round(formScore * 100) / 100;
+      }
 
       if (minFormAvg > 0 && (formScore === null || formScore < minFormAvg)) return false;
       if (minFormSingle > 0) {
@@ -194,6 +198,8 @@ export default function TrackerPage() {
 
       // Calcolo Hist Score
       let histScore = b.hist_score;
+      if (histScore !== null) histScore = Math.round(histScore * 100) / 100;
+
       if (minHistAvg > 0 && (histScore === null || histScore < minHistAvg)) return false;
       if (minHistSingle > 0) {
         const hParts = [];
@@ -423,7 +429,7 @@ export default function TrackerPage() {
             <div className="stats-row">
               <div className="stat-card">
                 <div className="stat-label">Value Bet Evaluate ({Math.round(minBacktestEdge*100)}%+)</div>
-                <div className="stat-value">{filteredBacktestBets.length}</div>
+                <div className="stat-value">{sortedBT.length}</div>
               </div>
               <div className="stat-card">
                 <div className="stat-label">Hit Rate Modello</div>
