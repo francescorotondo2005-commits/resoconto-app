@@ -14,7 +14,7 @@ export default function TrackerPage() {
   // Backtest
   const [backtestBets, setBacktestBets] = useState([]);
   const [backtestStats, setBacktestStats] = useState({});
-  const [minBacktestEdge, setMinBacktestEdge] = useState(0);
+  const [minBacktestEdge, setMinBacktestEdge] = useState(-1.0);
   const [minBacktestProb, setMinBacktestProb] = useState(0);
   const [minOdds, setMinOdds] = useState(0); // 0 = nessun filtro quota
   const [minHistAvg, setMinHistAvg] = useState(0);
@@ -167,6 +167,7 @@ export default function TrackerPage() {
     const eps = 0.0001;
 
     // 1. FILTRO BASE (EDGE, PROB, QUOTA)
+    // Se l'edge è -1.0 (default), passano tutti. Se è 0, passano solo >= 0.
     if (edge < (minBacktestEdge - eps)) return false;
     if (prob < (minBacktestProb - eps)) return false;
     if (odds < (minOdds - eps)) return false;

@@ -74,7 +74,7 @@ async function start() {
 
   console.log(`Bets caricate: ${bets.length}`);
 
-  const edgeThresholds   = uniqueSortedThresholds(bets.map(b => b.edge),   0, 0.5);
+  const edgeThresholds   = uniqueSortedThresholds(bets.map(b => b.edge),   -0.05, 0.5);
   const probThresholds   = uniqueSortedThresholds(bets.map(b => b.prob),   0.50, 1.0);
   const histAvgThresholds  = uniqueSortedThresholds(bets.map(b => b.histScore), 0, 1.0);
   const histSingThresholds = uniqueSortedThresholds([0, ...bets.map(b => b.hMin).filter(v => v !== null)], 0, 1.0);
