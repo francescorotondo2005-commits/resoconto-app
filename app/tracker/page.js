@@ -158,54 +158,41 @@ export default function TrackerPage() {
   }
 
   const filteredBacktestBets = backtestBets.filter(b => {
+    // DATI BASE
     const edge = b.best_edge ?? 0;
     const prob = b.probability ?? 0;
     const odds = Math.max(b.sportium || 0, b.sportbet || 0);
 
-    // Usiamo una piccola tolleranza (epsilon) per evitare problemi di precisione decimale (0.79999999)
+    // EPSILON PER PRECISIONE
     const eps = 0.0001;
 
-    if (minBacktestEdge > 0 && edge < (minBacktestEdge - eps)) return false;
+    // 1. FILTRO BASE (EDGE, PROB, QUOTA)
+    if (edge < (minBacktestEdge - eps)) return false;
     if (prob < (minBacktestProb - eps)) return false;
-    
-    // Se la quota è 0, la mostriamo solo se il filtro è <= 1.00 (così vediamo tutto il DB)
-    if (minOdds > 1.00) {
-      if (odds < (minOdds - eps)) return false;
-    } else if (minOdds > 0) {
-      if (odds > 0 && odds < (minOdds - eps)) return false;
+    if (odds < (minOdds - eps)) return false;
+
+    // 2. FILTRO FORMA (MEDIA)
+    if (minFormAvg > 0) {
+      const fParts = [b.form_home_pct, b.form_away_pct, b.form_home_gen_pct, b.form_away_gen_pct].filter(v => v !== null);
+      const formScore = fParts.length > 0 ? fParts.reduce((a,v) => a+v, 0) / fParts.length : null;
+      if (formScore === null || formScore < (minFormAvg - eps)) return false;
     }
-    
-    // Filtri avanzati Hist/Form (solo se attivati > 0)
-    if (minHistAvg > 0 || minHistSingle > 0 || minFormAvg > 0 || minFormSingle > 0) {
-      // Calcolo Form Score
-      let formScore = null;
-      const fParts = [];
-      if (b.form_home_pct !== null) fParts.push(b.form_home_pct);
-      if (b.form_away_pct !== null) fParts.push(b.form_away_pct);
-      if (b.form_home_gen_pct !== null) fParts.push(b.form_home_gen_pct);
-      if (b.form_away_gen_pct !== null) fParts.push(b.form_away_gen_pct);
-      if (fParts.length > 0) formScore = fParts.reduce((a,v) => a+v, 0) / fParts.length;
 
-      if (minFormAvg > 0 && (formScore === null || formScore < (minFormAvg - eps))) return false;
-      if (minFormSingle > 0) {
-        if (fParts.length !== 4) return false;
-        if (Math.min(...fParts) < (minFormSingle - eps)) return false;
-      }
+    // 3. FILTRO STORICO (MEDIA)
+    if (minHistAvg > 0) {
+      const histScore = b.hist_score;
+      if (histScore === null || histScore < (minHistAvg - eps)) return false;
+    }
 
-      // Calcolo Hist Score
-      let histScore = b.hist_score;
-      if (minHistAvg > 0 && (histScore === null || histScore < (minHistAvg - eps))) return false;
-      if (minHistSingle > 0) {
-        const hParts = [];
-        if (b.home_hist_pct !== null) hParts.push(b.home_hist_pct);
-        if (b.away_hist_pct !== null) hParts.push(b.away_hist_pct);
-        if (b.home_hist_overall_pct !== null) hParts.push(b.home_hist_overall_pct);
-        if (b.away_hist_overall_pct !== null) hParts.push(b.away_hist_overall_pct);
-        if (b.ref_hist_pct !== null) hParts.push(b.ref_hist_pct);
-        
-        if (hParts.length < 4) return false;
-        if (Math.min(...hParts) < (minHistSingle - eps)) return false;
-      }
+    // 4. FILTRI SINGOLI (SOLO SE ATTIVI)
+    if (minFormSingle > 0) {
+      const fParts = [b.form_home_pct, b.form_away_pct, b.form_home_gen_pct, b.form_away_gen_pct].filter(v => v !== null);
+      if (fParts.length < 4 || Math.min(...fParts) < (minFormSingle - eps)) return false;
+    }
+
+    if (minHistSingle > 0) {
+      const hParts = [b.home_hist_pct, b.away_hist_pct, b.home_hist_overall_pct, b.away_hist_overall_pct, b.ref_hist_pct].filter(v => v !== null);
+      if (hParts.length < 4 || Math.min(...hParts) < (minHistSingle - eps)) return false;
     }
 
     return true;
