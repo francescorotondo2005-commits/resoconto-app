@@ -158,21 +158,21 @@ export default function TrackerPage() {
   }
 
   const filteredBacktestBets = backtestBets.filter(b => {
-    // Arrotondiamo alla seconda cifra decimale per coerenza totale con lo script di calcolo
-    const edge = Math.round((b.best_edge ?? 0) * 100) / 100;
-    const prob = Math.round((b.probability ?? 0) * 100) / 100;
-    const odds = Math.round((Math.max(b.sportium || 0, b.sportbet || 0)) * 100) / 100;
+    const edge = b.best_edge ?? 0;
+    const prob = b.probability ?? 0;
+    const odds = Math.max(b.sportium || 0, b.sportbet || 0);
 
-    // Applichiamo il filtro edge solo se l'utente lo alza sopra lo 0 o se l'edge non è quello di errore (-1)
-    if (minBacktestEdge > 0 && edge < minBacktestEdge) return false;
-    if (prob < minBacktestProb) return false;
+    // Usiamo una piccola tolleranza (epsilon) per evitare problemi di precisione decimale (0.79999999)
+    const eps = 0.0001;
+
+    if (minBacktestEdge > 0 && edge < (minBacktestEdge - eps)) return false;
+    if (prob < (minBacktestProb - eps)) return false;
     
     // Se la quota è 0, la mostriamo solo se il filtro è <= 1.00 (così vediamo tutto il DB)
     if (minOdds > 1.00) {
-      if (odds < minOdds) return false;
+      if (odds < (minOdds - eps)) return false;
     } else if (minOdds > 0) {
-      // Se l'utente mette ad esempio 0.5, mostriamo solo chi ha quota o chi è 0
-      if (odds > 0 && odds < minOdds) return false;
+      if (odds > 0 && odds < (minOdds - eps)) return false;
     }
     
     // Filtri avanzati Hist/Form (solo se attivati > 0)
@@ -184,23 +184,17 @@ export default function TrackerPage() {
       if (b.form_away_pct !== null) fParts.push(b.form_away_pct);
       if (b.form_home_gen_pct !== null) fParts.push(b.form_home_gen_pct);
       if (b.form_away_gen_pct !== null) fParts.push(b.form_away_gen_pct);
+      if (fParts.length > 0) formScore = fParts.reduce((a,v) => a+v, 0) / fParts.length;
 
-      if (fParts.length > 0) {
-        formScore = fParts.reduce((a,v) => a+v, 0) / fParts.length;
-        formScore = Math.round(formScore * 100) / 100;
-      }
-
-      if (minFormAvg > 0 && (formScore === null || formScore < minFormAvg)) return false;
+      if (minFormAvg > 0 && (formScore === null || formScore < (minFormAvg - eps))) return false;
       if (minFormSingle > 0) {
         if (fParts.length !== 4) return false;
-        if (Math.min(...fParts) < minFormSingle) return false;
+        if (Math.min(...fParts) < (minFormSingle - eps)) return false;
       }
 
       // Calcolo Hist Score
       let histScore = b.hist_score;
-      if (histScore !== null) histScore = Math.round(histScore * 100) / 100;
-
-      if (minHistAvg > 0 && (histScore === null || histScore < minHistAvg)) return false;
+      if (minHistAvg > 0 && (histScore === null || histScore < (minHistAvg - eps))) return false;
       if (minHistSingle > 0) {
         const hParts = [];
         if (b.home_hist_pct !== null) hParts.push(b.home_hist_pct);
@@ -210,7 +204,7 @@ export default function TrackerPage() {
         if (b.ref_hist_pct !== null) hParts.push(b.ref_hist_pct);
         
         if (hParts.length < 4) return false;
-        if (Math.min(...hParts) < minHistSingle) return false;
+        if (Math.min(...hParts) < (minHistSingle - eps)) return false;
       }
     }
 
@@ -222,7 +216,7 @@ export default function TrackerPage() {
   let btWins = 0;
   let btFinished = 0;
   
-  const sortedBT = [...(filteredBacktestBets.filter(b => b.outcome !== 'PENDING' && b.outcome !== 'VOID'))].sort((a, b) => 
+  const sortedBT = [...(filteredBacktestBets.filter(b => b.outcome === 'WIN' || b.outcome === 'LOSS'))].sort((a, b) => 
     new Date(a.created_at) - new Date(b.created_at)
   );
   

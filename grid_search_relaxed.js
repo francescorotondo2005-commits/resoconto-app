@@ -88,33 +88,34 @@ async function start() {
   const allResults = new Map();
   let totalTested = 0;
   const startTime = Date.now();
+  const eps = 0.0001;
 
   for (const minEdge of edgeThresholds) {
-    const afterEdge = bets.filter(b => b.edge >= minEdge);
+    const afterEdge = bets.filter(b => b.edge >= (minEdge - eps));
     if (afterEdge.length < MIN_BETS) break;
 
     for (const minProb of probThresholds) {
-      const afterProb = afterEdge.filter(b => b.prob >= minProb);
+      const afterProb = afterEdge.filter(b => b.prob >= (minProb - eps));
       if (afterProb.length < MIN_BETS) break;
 
       for (const minHistAvg of histAvgThresholds) {
-        const afterHistAvg = afterProb.filter(b => b.histScore !== null && b.histScore >= minHistAvg);
+        const afterHistAvg = afterProb.filter(b => b.histScore !== null && b.histScore >= (minHistAvg - eps));
         if (afterHistAvg.length < MIN_BETS) break;
 
         for (const minHistSingle of histSingThresholds) {
           const afterHistSingle = minHistSingle === 0
             ? afterHistAvg
-            : afterHistAvg.filter(b => b.hMin !== null && b.hMin >= minHistSingle);
+            : afterHistAvg.filter(b => b.hMin !== null && b.hMin >= (minHistSingle - eps));
           if (afterHistSingle.length < MIN_BETS) break;
 
           for (const minFormAvg of formAvgThresholds) {
-            const afterFormAvg = afterHistSingle.filter(b => b.formScore !== null && b.formScore >= minFormAvg);
+            const afterFormAvg = afterHistSingle.filter(b => b.formScore !== null && b.formScore >= (minFormAvg - eps));
             if (afterFormAvg.length < MIN_BETS) break;
 
             for (const minFormSingle of formSingThresholds) {
               const finalBets = minFormSingle === 0
                 ? afterFormAvg
-                : afterFormAvg.filter(b => b.fMin !== null && b.fMin >= minFormSingle);
+                : afterFormAvg.filter(b => b.fMin !== null && b.fMin >= (minFormSingle - eps));
 
               if (finalBets.length < MIN_BETS) break;
 
