@@ -212,7 +212,11 @@ function ValueBetsContent() {
                     <td><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{bet.category}</span></td>
                     <td>{bet.ev}</td>
                     <td>{bet.sd}</td>
-                    <td>{(bet.cv * 100).toFixed(1)}%</td>
+                    <td>
+                      <span className={`badge ${bet.cv < 0.5 ? 'badge-value' : bet.cv > 0.8 ? 'badge-discard' : 'badge-warning'}`} style={{ fontSize: '11px', padding: '2px 6px' }}>
+                        {(bet.cv * 100).toFixed(1)}%
+                      </span>
+                    </td>
                     <td style={{ fontWeight: 600 }}>{(bet.probability * 100).toFixed(1)}%</td>
                     <td>
                       <span className="edge-indicator positive">

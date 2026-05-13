@@ -322,7 +322,7 @@ app.post('/retrain', (req, res) => {
 
   const scriptPath = path.join(PROJECT_DIR, 'ml_train_all.py');
 
-  execFile('python', [scriptPath], { timeout: 300000, cwd: PROJECT_DIR }, (err, stdout) => {
+  execFile('python', [scriptPath], { timeout: 1200000, cwd: PROJECT_DIR }, (err, stdout) => {
     app.locals.retrainRunning = false;
     if (err) {
       console.error('[ML] Errore re-training:', err.message);

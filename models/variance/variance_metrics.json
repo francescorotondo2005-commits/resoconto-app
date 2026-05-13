@@ -1,37 +1,37 @@
 {
   "gol": {
     "variance_model_type": "xgb",
-    "variance_mae": 0.9016,
-    "variance_trained_at": "2026-05-12T00:27:29.229754"
+    "variance_mae": 0.5036,
+    "variance_trained_at": "2026-05-13T23:50:22.069667"
   },
   "tiri": {
     "variance_model_type": "xgb",
-    "variance_mae": 15.3696,
-    "variance_trained_at": "2026-05-12T00:27:36.450268"
+    "variance_mae": 15.6612,
+    "variance_trained_at": "2026-05-13T23:50:53.934306"
   },
   "tip": {
     "variance_model_type": "xgb",
-    "variance_mae": 3.6018,
-    "variance_trained_at": "2026-05-12T00:27:41.850586"
+    "variance_mae": 3.5612,
+    "variance_trained_at": "2026-05-13T23:51:19.855247"
   },
   "falli": {
     "variance_model_type": "xgb",
-    "variance_mae": 8.7808,
-    "variance_trained_at": "2026-05-12T00:28:09.590308"
+    "variance_mae": 9.0402,
+    "variance_trained_at": "2026-05-13T23:51:46.556974"
   },
   "corner": {
     "variance_model_type": "xgb",
-    "variance_mae": 5.4338,
-    "variance_trained_at": "2026-05-12T00:28:28.247317"
+    "variance_mae": 4.0697,
+    "variance_trained_at": "2026-05-13T23:52:52.481173"
   },
   "cartellini": {
     "variance_model_type": "xgb",
-    "variance_mae": 1.8953,
-    "variance_trained_at": "2026-05-12T00:28:53.711377"
+    "variance_mae": 1.8786,
+    "variance_trained_at": "2026-05-13T23:53:43.850277"
   },
   "parate": {
     "variance_model_type": "xgb",
-    "variance_mae": 2.7219,
-    "variance_trained_at": "2026-05-12T00:28:56.682734"
+    "variance_mae": 2.8083,
+    "variance_trained_at": "2026-05-13T23:54:33.290138"
   }
 }

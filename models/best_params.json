@@ -1,51 +1,142 @@
 {
   "gol": {
-    "model_type": "rf",
-    "mae": 0.9148,
-    "n_estimators": 285,
-    "max_depth": 4,
-    "min_samples_leaf": 5
+    "rf": {
+      "n_estimators": 468,
+      "max_depth": 4,
+      "min_samples_leaf": 7
+    },
+    "xgb": {
+      "n_estimators": 405,
+      "max_depth": 7,
+      "learning_rate": 0.01166069562627386,
+      "subsample": 0.7942069474233401,
+      "colsample_bytree": 0.7674799966926674
+    },
+    "hgb": {
+      "max_iter": 253,
+      "max_depth": 3,
+      "min_samples_leaf": 6,
+      "learning_rate": 0.01165368090777449
+    }
   },
   "tiri": {
-    "model_type": "rf",
-    "mae": 3.6795,
-    "n_estimators": 313,
-    "max_depth": 4,
-    "min_samples_leaf": 14
+    "rf": {
+      "n_estimators": 203,
+      "max_depth": 4,
+      "min_samples_leaf": 19
+    },
+    "xgb": {
+      "n_estimators": 239,
+      "max_depth": 3,
+      "learning_rate": 0.01977251571887874,
+      "subsample": 0.8615979066457694,
+      "colsample_bytree": 0.8745850825119945
+    },
+    "hgb": {
+      "max_iter": 192,
+      "max_depth": 3,
+      "min_samples_leaf": 42,
+      "learning_rate": 0.011965336156087754
+    }
   },
   "tip": {
-    "model_type": "rf",
-    "mae": 1.766,
-    "n_estimators": 321,
-    "max_depth": 4,
-    "min_samples_leaf": 16
+    "rf": {
+      "n_estimators": 131,
+      "max_depth": 4,
+      "min_samples_leaf": 9
+    },
+    "xgb": {
+      "n_estimators": 412,
+      "max_depth": 3,
+      "learning_rate": 0.02357190344645314,
+      "subsample": 0.6429608177911036,
+      "colsample_bytree": 0.8166760431763506
+    },
+    "hgb": {
+      "max_iter": 215,
+      "max_depth": 3,
+      "min_samples_leaf": 29,
+      "learning_rate": 0.015626263802263597
+    }
   },
   "falli": {
-    "model_type": "rf",
-    "mae": 2.8568,
-    "n_estimators": 399,
-    "max_depth": 4,
-    "min_samples_leaf": 6
+    "rf": {
+      "n_estimators": 128,
+      "max_depth": 4,
+      "min_samples_leaf": 6
+    },
+    "xgb": {
+      "n_estimators": 417,
+      "max_depth": 3,
+      "learning_rate": 0.01565039415305072,
+      "subsample": 0.6695982405840673,
+      "colsample_bytree": 0.8412106966600313
+    },
+    "hgb": {
+      "max_iter": 120,
+      "max_depth": 3,
+      "min_samples_leaf": 7,
+      "learning_rate": 0.020134383197404005
+    }
   },
   "corner": {
-    "model_type": "rf",
-    "mae": 2.1229,
-    "n_estimators": 268,
-    "max_depth": 3,
-    "min_samples_leaf": 16
+    "rf": {
+      "n_estimators": 480,
+      "max_depth": 5,
+      "min_samples_leaf": 20
+    },
+    "xgb": {
+      "n_estimators": 219,
+      "max_depth": 7,
+      "learning_rate": 0.017256595183008195,
+      "subsample": 0.6542261539364419,
+      "colsample_bytree": 0.9143749226082364
+    },
+    "hgb": {
+      "max_iter": 103,
+      "max_depth": 7,
+      "min_samples_leaf": 46,
+      "learning_rate": 0.013866250908659932
+    }
   },
   "cartellini": {
-    "model_type": "rf",
-    "mae": 1.2024,
-    "n_estimators": 412,
-    "max_depth": 3,
-    "min_samples_leaf": 3
+    "rf": {
+      "n_estimators": 481,
+      "max_depth": 3,
+      "min_samples_leaf": 3
+    },
+    "xgb": {
+      "n_estimators": 285,
+      "max_depth": 3,
+      "learning_rate": 0.010519387338995777,
+      "subsample": 0.8969090983314055,
+      "colsample_bytree": 0.6138964995282163
+    },
+    "hgb": {
+      "max_iter": 141,
+      "max_depth": 3,
+      "min_samples_leaf": 5,
+      "learning_rate": 0.013020577681072778
+    }
   },
   "parate": {
-    "model_type": "rf",
-    "mae": 1.5062,
-    "n_estimators": 177,
-    "max_depth": 3,
-    "min_samples_leaf": 11
+    "rf": {
+      "n_estimators": 482,
+      "max_depth": 3,
+      "min_samples_leaf": 18
+    },
+    "xgb": {
+      "n_estimators": 88,
+      "max_depth": 3,
+      "learning_rate": 0.034786963969196436,
+      "subsample": 0.6755173509277917,
+      "colsample_bytree": 0.7879226417638127
+    },
+    "hgb": {
+      "max_iter": 269,
+      "max_depth": 3,
+      "min_samples_leaf": 39,
+      "learning_rate": 0.010290426913763117
+    }
   }
 }

@@ -746,7 +746,7 @@ function AnalysisContent() {
                         </td>
                         <td>{m.sd.toFixed(2)}</td>
                         <td>
-                          <span className={`badge ${m.cv < 0.5 ? 'badge-value' : m.cv > 1.0 ? 'badge-discard' : ''}`}>
+                          <span className={`badge ${m.cv < 0.5 ? 'badge-value' : m.cv > 0.8 ? 'badge-discard' : 'badge-warning'}`}>
                             {m.cv !== null ? (m.cv * 100).toFixed(0) + '%' : '—'}
                           </span>
                         </td>

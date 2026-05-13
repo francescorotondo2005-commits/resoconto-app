@@ -14,7 +14,7 @@ warnings.filterwarnings('ignore')
 sys.stderr = open(os.devnull, 'w')
 
 # Importa le funzioni condivise da ml_train_all
-from ml_train_all import STATS, get_stat, get_feature_cols, _avg, VARIANCE_MODELS_DIR
+from ml_train_all import STATS, get_stat, get_feature_cols, _avg, MODELS_DIR, VARIANCE_MODELS_DIR
 
 # ─────────────────────────────────────────────────────────────
 # CALCOLO FEATURE PER LA PREDIZIONE
@@ -126,15 +126,14 @@ def predict_batch(matches):
         # Carica tutti i modelli una sola volta
         models = {}
         var_models = {}
-        models_dir = 'models'
         for s in STATS:
-            models[f'{s}_casa']   = joblib.load(os.path.join(models_dir, f'rf_{s}_casa.joblib'))
-            models[f'{s}_ospite'] = joblib.load(os.path.join(models_dir, f'rf_{s}_ospite.joblib'))
+            models[f'{s}_casa']   = joblib.load(os.path.join(MODELS_DIR, f'model_{s}_casa.joblib'))
+            models[f'{s}_ospite'] = joblib.load(os.path.join(MODELS_DIR, f'model_{s}_ospite.joblib'))
             
             # Carica i modelli di varianza (con fallback se non sono ancora stati addestrati)
             try:
-                var_models[f'{s}_casa'] = joblib.load(os.path.join(VARIANCE_MODELS_DIR, f'xgb_{s}_casa_variance.joblib'))
-                var_models[f'{s}_ospite'] = joblib.load(os.path.join(VARIANCE_MODELS_DIR, f'xgb_{s}_ospite_variance.joblib'))
+                var_models[f'{s}_casa'] = joblib.load(os.path.join(VARIANCE_MODELS_DIR, f'variance_{s}_casa.joblib'))
+                var_models[f'{s}_ospite'] = joblib.load(os.path.join(VARIANCE_MODELS_DIR, f'variance_{s}_ospite.joblib'))
             except FileNotFoundError:
                 var_models[f'{s}_casa'] = None
                 var_models[f'{s}_ospite'] = None
