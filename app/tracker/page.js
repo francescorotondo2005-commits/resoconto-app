@@ -21,6 +21,7 @@ export default function TrackerPage() {
   const [minHistSingle, setMinHistSingle] = useState(0);
   const [minFormAvg, setMinFormAvg] = useState(0);
   const [minFormSingle, setMinFormSingle] = useState(0);
+  const [maxCV, setMaxCV] = useState(1.0); // 1.0 = 100% = nessun limite
   const [backtestLoading, setBacktestLoading] = useState(false);
   const [backfillLoading, setBackfillLoading] = useState(false);
   const [backfillResult, setBackfillResult] = useState(null);
@@ -195,6 +196,9 @@ export default function TrackerPage() {
       const hParts = [b.home_hist_pct, b.away_hist_pct, b.home_hist_overall_pct, b.away_hist_overall_pct, b.ref_hist_pct].filter(v => v !== null);
       if (hParts.length < 4 || Math.min(...hParts) < (minHistSingle - eps)) return false;
     }
+
+    // 5. FILTRO CV (CONFIDENCE)
+    if (b.cv !== null && b.cv !== undefined && b.cv > (maxCV + eps)) return false;
 
     return true;
   });
@@ -395,6 +399,11 @@ export default function TrackerPage() {
                     <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 55, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(minFormSingle * 100)} onChange={e => setMinFormSingle(parseFloat(e.target.value) / 100 || 0)} />
                     <span style={{ fontSize: 14, fontWeight: 600 }}>%</span>
                   </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(108, 92, 231, 0.08)', padding: '6px 16px', borderRadius: 'var(--radius-lg)', border: '1px solid rgba(108, 92, 231, 0.2)' }}>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-primary)', textTransform: 'uppercase' }}>CV Max:</label>
+                    <input type="number" step="1" min="0" max="100" className="input-field" style={{ width: 55, padding: '4px 8px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)' }} value={Math.round(maxCV * 100)} onChange={e => setMaxCV(parseFloat(e.target.value) / 100 || 1.0)} />
+                    <span style={{ fontSize: 14, fontWeight: 600 }}>%</span>
+                  </div>
                   <button
                     className="btn btn-secondary btn-sm"
                     onClick={runBackfill}
@@ -470,6 +479,7 @@ export default function TrackerPage() {
                   <tr>
                     <th>Data Match</th><th>Partita</th><th>Scommessa</th><th>Cat.</th>
                     <th>Prob.</th><th>Sportium</th><th>Sportbet</th><th>Edge MAX</th>
+                    <th style={{ color: 'var(--accent-primary)' }}>CV</th>
                     <th style={{ color: 'var(--green)' }}>Hist%</th>
                     <th style={{ color: 'var(--orange, #f59e0b)' }}>Form%</th>
                     <th>Esito</th><th>Azione</th>
@@ -511,6 +521,15 @@ export default function TrackerPage() {
                       <td>{b.sportbet || '—'}</td>
                       <td className={`edge-indicator ${b.best_edge >= 0 ? 'positive' : 'negative'}`}>
                         {(b.best_edge * 100).toFixed(1)}%
+                      </td>
+                      <td>
+                        {b.cv !== null && b.cv !== undefined ? (
+                          <span className={`badge ${b.cv < 0.5 ? 'badge-value' : b.cv > 0.8 ? 'badge-discard' : 'badge-warning'}`}>
+                            {Math.round(b.cv * 100)}%
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</span>
+                        )}
                       </td>
                       <td>
                         {histScore !== null && histScore !== undefined ? (

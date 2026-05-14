@@ -169,6 +169,7 @@ export default function EliteCombinationsPage() {
                     <th onClick={() => handleSort('params.minHistSingle')}>Singolo Stor. <SortIcon columnKey="params.minHistSingle" /></th>
                     <th onClick={() => handleSort('params.minFormAvg')}>Media Forma <SortIcon columnKey="params.minFormAvg" /></th>
                     <th onClick={() => handleSort('params.minFormSingle')}>Singolo Forma <SortIcon columnKey="params.minFormSingle" /></th>
+                    <th onClick={() => handleSort('params.maxCV')}>CV Max <SortIcon columnKey="params.maxCV" /></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -191,6 +192,7 @@ export default function EliteCombinationsPage() {
                       <td>{pct0(c.params.minHistSingle)}</td>
                       <td>{pct0(c.params.minFormAvg)}</td>
                       <td>{pct0(c.params.minFormSingle)}</td>
+                      <td>{pct0(c.params.maxCV)}</td>
                     </tr>
                   ))}
                 </tbody>
