@@ -2,6 +2,7 @@ import sqlite3
 import pandas as pd
 import numpy as np
 import os
+os.environ["PYTHONWARNINGS"] = "ignore"
 import json
 import joblib
 import argparse
@@ -21,6 +22,18 @@ warnings.filterwarnings('ignore')
 # COSTANTI
 # ?????????????????????????????????????????????????????????????
 STATS = ['gol', 'tiri', 'tip', 'falli', 'corner', 'cartellini', 'parate']
+
+# Soglie Over/Under per il calcolo delle Hit Rates (stile Excel)
+# Per ogni statistica, le 3 linee di scommessa più comuni
+HIT_RATE_THRESHOLDS = {
+    'gol':        [0.5, 1.5, 2.5],
+    'tiri':       [8.5, 10.5, 12.5],
+    'tip':        [2.5, 4.5, 6.5],
+    'falli':      [10.5, 12.5, 14.5],
+    'corner':     [3.5, 4.5, 5.5],
+    'cartellini': [1.5, 2.5, 3.5],
+    'parate':     [1.5, 2.5, 3.5],
+}
 # Directory per i modelli (percorsi assoluti per evitare errori se chiamato da altre cartelle)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(SCRIPT_DIR, 'models')
@@ -28,7 +41,7 @@ METRICS_PATH    = os.path.join(MODELS_DIR, 'metrics.json')
 BEST_PARAMS_PATH = os.path.join(MODELS_DIR, 'best_params.json')
 COUNT_PATH      = os.path.join(MODELS_DIR, 'match_count.json')
 TUNE_EVERY_N    = 50   # trigger automatico Optuna ogni N nuove partite
-N_OPTUNA_TRIALS = 60   # trial per statistica
+N_OPTUNA_TRIALS = 30   # trial per statistica (60 non migliorava il MAE, solo raddoppiava il tempo)
 HOLDOUT_N       = 30   # ultime N partite per champion vs challenger
 
 # Directory for variance models
@@ -64,6 +77,24 @@ def _avg(lst, n):
     if not lst: return 0.0
     return float(np.mean(lst[-n:]))
 
+def _hit_rate(lst, n, threshold):
+    """Percentuale di valori negli ultimi n che superano la soglia (Hit Rate)."""
+    recent = lst[-n:] if lst else []
+    if not recent: return 0.0
+    return float(sum(1 for v in recent if v > threshold) / len(recent))
+
+def _median(lst, n):
+    """Mediana degli ultimi n valori. Robusta agli outlier."""
+    recent = lst[-n:] if lst else []
+    if not recent: return 0.0
+    return float(np.median(recent))
+
+def _std(lst, n):
+    """Deviazione standard degli ultimi n valori. Misura di consistenza."""
+    recent = lst[-n:] if lst else []
+    if len(recent) < 2: return 0.0
+    return float(np.std(recent))
+
 # ?????????????????????????????????????????????????????????????
 # COLONNE FEATURE ? usate sia in training che in predict
 # ?????????????????????????????????????????????????????????????
@@ -84,6 +115,26 @@ def get_feature_cols(stat):
     ]
     if stat in ('falli', 'cartellini'):
         cols.append(f'f_{stat}_ref')
+
+    # --- NUOVE FEATURE: Hit Rates, Deviazione Standard, Mediana ---
+    thresholds = HIT_RATE_THRESHOLDS[stat]
+    for side in ('h', 'a'):
+        for i in range(1, len(thresholds) + 1):
+            # Hit Rate Fatti Globale (ultime 10, casa+trasf)
+            cols.append(f'f_{stat}_{side}_for_hr{i}')
+            # Hit Rate Subiti Globale (ultime 10, casa+trasf)
+            cols.append(f'f_{stat}_{side}_ag_hr{i}')
+            # Hit Rate Fatti Specifico (home_for per 'h', away_for per 'a')
+            cols.append(f'f_{stat}_{side}_spec_for_hr{i}')
+            # Hit Rate Subiti Specifico (home_ag per 'h', away_ag per 'a')
+            cols.append(f'f_{stat}_{side}_spec_ag_hr{i}')
+        # Deviazione Standard (consistenza, ultime 10)
+        cols.append(f'f_{stat}_{side}_for_std')
+        cols.append(f'f_{stat}_{side}_ag_std')
+        # Mediana (robusta agli outlier, ultime 10)
+        cols.append(f'f_{stat}_{side}_for_med')
+        cols.append(f'f_{stat}_{side}_ag_med')
+
     return cols
 
 # ?????????????????????????????????????????????????????????????
@@ -190,6 +241,30 @@ def feature_engineering(df):
                 ref_vals = ref_hist[ref][s]
                 fallback = row_feat[f'f_{s}_h_for5'] + row_feat[f'f_{s}_a_for5']
                 row_feat[f'f_{s}_ref'] = _avg(ref_vals, 10) if ref_vals else fallback
+
+            # --- NUOVE FEATURE: Hit Rates, Deviazione Standard, Mediana ---
+            thresholds = HIT_RATE_THRESHOLDS[s]
+            for i, thr in enumerate(thresholds, 1):
+                # Home team
+                row_feat[f'f_{s}_h_for_hr{i}']      = _hit_rate(h['for_all'],  10, thr)
+                row_feat[f'f_{s}_h_ag_hr{i}']       = _hit_rate(h['ag_all'],   10, thr)
+                row_feat[f'f_{s}_h_spec_for_hr{i}'] = _hit_rate(h['home_for'], 10, thr)
+                row_feat[f'f_{s}_h_spec_ag_hr{i}']  = _hit_rate(h['home_ag'],  10, thr)
+                # Away team
+                row_feat[f'f_{s}_a_for_hr{i}']      = _hit_rate(a['for_all'],  10, thr)
+                row_feat[f'f_{s}_a_ag_hr{i}']       = _hit_rate(a['ag_all'],   10, thr)
+                row_feat[f'f_{s}_a_spec_for_hr{i}'] = _hit_rate(a['away_for'], 10, thr)
+                row_feat[f'f_{s}_a_spec_ag_hr{i}']  = _hit_rate(a['away_ag'],  10, thr)
+            # Deviazione Standard (ultime 10)
+            row_feat[f'f_{s}_h_for_std'] = _std(h['for_all'], 10)
+            row_feat[f'f_{s}_h_ag_std']  = _std(h['ag_all'],  10)
+            row_feat[f'f_{s}_a_for_std'] = _std(a['for_all'], 10)
+            row_feat[f'f_{s}_a_ag_std']  = _std(a['ag_all'],  10)
+            # Mediana (ultime 10)
+            row_feat[f'f_{s}_h_for_med'] = _median(h['for_all'], 10)
+            row_feat[f'f_{s}_h_ag_med']  = _median(h['ag_all'],  10)
+            row_feat[f'f_{s}_a_for_med'] = _median(a['for_all'], 10)
+            row_feat[f'f_{s}_a_ag_med']  = _median(a['ag_all'],  10)
 
             # Target
             row_feat[f'target_{s}_casa']   = get_stat(row, s, True)
@@ -343,8 +418,14 @@ def optuna_tune(ml_df, n_trials=N_OPTUNA_TRIALS):
 def champion_vs_challenger(stat, chal_mae_cv, metrics):
     """
     Valuta champion vs challenger usando il MAE Globale (CV).
-    Ritorna (better, mae_champ_cv, mae_champ_rec)
+    Ritorna (better, mae_champ_cv, mae_champ_rec).
+    Se il file .joblib non esiste sul disco, il challenger vince (nessun champion reale).
     """
+    # Verifica che il modello champion esista fisicamente su disco
+    champ_path = os.path.join(MODELS_DIR, f'model_{stat}_casa.joblib')
+    if not os.path.exists(champ_path):
+        return True, 0.0, 0.0
+
     if stat not in metrics or 'mae' not in metrics[stat] or metrics[stat]['mae'] == 0:
         return True, 0.0, 0.0
 
@@ -355,15 +436,19 @@ def champion_vs_challenger(stat, chal_mae_cv, metrics):
     better = round(chal_mae_cv, 4) < round(mae_champ_cv, 4)
     return better, mae_champ_cv, mae_champ_rec
 
+
 def champion_vs_challenger_variance(ml_df, challenger_models, target_var_c, target_var_o, stat):
     """
     Simile a champion_vs_challenger ma per i modelli di varianza.
+    Ora utilizza il MAE Globale sull'intero dataset per maggiore stabilità.
+    Restituisce: (vince_challenger, mae_champ_glob, mae_chal_glob, mae_champ_rec, mae_chal_rec)
     """
     champ_path_c = os.path.join(VARIANCE_MODELS_DIR, f'variance_{stat}_casa.joblib')
     champ_path_o = os.path.join(VARIANCE_MODELS_DIR, f'variance_{stat}_ospite.joblib')
 
-    if not os.path.exists(champ_path_c) or not os.path.exists(champ_path_o):
-        return True, 0.0, 0.0
+    X = ml_df[get_feature_cols(stat)]
+    vc = target_var_c
+    vo = target_var_o
 
     holdout = ml_df.tail(HOLDOUT_N)
     idx_h = holdout.index
@@ -371,19 +456,30 @@ def champion_vs_challenger_variance(ml_df, challenger_models, target_var_c, targ
     vc_h = target_var_c.loc[idx_h]
     vo_h = target_var_o.loc[idx_h]
 
+    chal_c, chal_o = challenger_models
+    
+    mae_chal_glob = (mean_absolute_error(vc, chal_c.predict(X)) +
+                     mean_absolute_error(vo, chal_o.predict(X))) / 2
+                     
+    mae_chal_rec = (mean_absolute_error(vc_h, chal_c.predict(X_h)) +
+                    mean_absolute_error(vo_h, chal_o.predict(X_h))) / 2
+
+    if not os.path.exists(champ_path_c) or not os.path.exists(champ_path_o):
+        return True, 0.0, mae_chal_glob, 0.0, mae_chal_rec  # NEW
+
     try:
         champ_c = joblib.load(champ_path_c)
         champ_o = joblib.load(champ_path_o)
-        mae_champ = (mean_absolute_error(vc_h, champ_c.predict(X_h)) +
-                     mean_absolute_error(vo_h, champ_o.predict(X_h))) / 2
+        
+        mae_champ_glob = (mean_absolute_error(vc, champ_c.predict(X)) +
+                          mean_absolute_error(vo, champ_o.predict(X))) / 2
+                          
+        mae_champ_rec = (mean_absolute_error(vc_h, champ_c.predict(X_h)) +
+                         mean_absolute_error(vo_h, champ_o.predict(X_h))) / 2
     except:
-        return True, 0.0, 0.0
+        return True, 0.0, mae_chal_glob, 0.0, mae_chal_rec  # Champion incompatibile
 
-    chal_c, chal_o = challenger_models
-    mae_chal = (mean_absolute_error(vc_h, chal_c.predict(X_h)) +
-                mean_absolute_error(vo_h, chal_o.predict(X_h))) / 2
-
-    return (mae_chal < mae_champ), mae_champ, mae_chal
+    return (mae_chal_glob < mae_champ_glob), mae_champ_glob, mae_chal_glob, mae_champ_rec, mae_chal_rec
 
 # ?????????????????????????????????????????????????????????????
 # TRAINING PRINCIPALE
@@ -516,8 +612,19 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
         print(f"  >> Challenger scelto: {mt_winner.upper()} (Global CV MAE: {m_chal_cv:.4f})")
 
         # Champion vs Challenger
+        # IMPORTANTE: se il numero di feature è cambiato, il vecchio modello è incompatibile.
+        # In questo caso forziamo il challenger a vincere per aggiornare il file sul disco.
+        current_n_features = len(fcols)
+        champ_n_features   = metrics.get(stat, {}).get('n_features', 0)
+        feature_set_changed = (champ_n_features != 0 and champ_n_features != current_n_features)
+
         print(f"  Confronto con Champion attuale (Global CV MAE):")
         challenger_wins, m_champ_cv, m_champ_rec = champion_vs_challenger(stat, m_chal_cv, metrics)
+
+        # Override: se il feature set è cambiato, il challenger vince sempre (evita mismatch)
+        if feature_set_changed:
+            challenger_wins = True
+            print(f"  [!!] Feature set cambiato ({champ_n_features} -> {current_n_features}): Challenger forzato a vincere")
 
         if challenger_wins:
             icon = "[OK]" if m_champ_cv > 0 else "[NEW]"
@@ -533,23 +640,20 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
                 'champion_updated': True,
                 'trained_at':  datetime.now().isoformat(),
                 'n_samples':   len(ml_df),
+                'n_features':  current_n_features,
                 'variance_mae': metrics.get(stat, {}).get('variance_mae', 0.0),
                 'variance_model_type': metrics.get(stat, {}).get('variance_model_type', 'xgb'),
                 'variance_trained_at': metrics.get(stat, {}).get('variance_trained_at', datetime.now().isoformat())
             }
         else:
             print(f"  [--] CV MAE: Champ {m_champ_cv:.4f} vs Chal {m_chal_cv:.4f} >> CHAMPION RIMANE")
-            # Se il champion rimane, lo ricarichiamo per il calcolo della varianza (opzionale, 
-            # ma più corretto se vogliamo la varianza del modello che useremo davvero)
-            try:
-                chal_c_final = joblib.load(os.path.join(MODELS_DIR, f'model_{stat}_casa.joblib'))
-                chal_o_final = joblib.load(os.path.join(MODELS_DIR, f'model_{stat}_ospite.joblib'))
-            except:
-                pass # Usa quello del challenger se non caricabile
+            # NON ricarichiamo il vecchio champion dal disco: potrebbe avere un feature set diverso.
+            # Il challenger è già trainato sulle feature correnti: usiamo lui per il Variance Predictor.
 
             if stat in metrics:
                 metrics[stat]['champion_updated'] = False
-                metrics[stat]['n_samples'] = len(ml_df)
+                metrics[stat]['n_samples']  = len(ml_df)
+                metrics[stat]['n_features'] = current_n_features
             else:
                 metrics[stat] = {
                     'model_type': mt_winner, 
@@ -558,6 +662,7 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
                     'champion_updated': False, 
                     'trained_at': datetime.now().isoformat(), 
                     'n_samples': len(ml_df),
+                    'n_features': current_n_features,
                     'variance_mae': 0.0,
                     'variance_model_type': 'xgb',
                     'variance_trained_at': datetime.now().isoformat()
@@ -575,36 +680,22 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
         v_chal_o = xgb.XGBRegressor(**var_params).fit(X, var_yo)
 
         # Variance Champion vs Challenger
-        v_wins, v_champ_rec, v_chal_rec = champion_vs_challenger_variance(ml_df, (v_chal_c, v_chal_o), var_yc, var_yo, stat)
+        v_wins, v_champ_glob, v_chal_glob, v_champ_rec, v_chal_rec = champion_vs_challenger_variance(ml_df, (v_chal_c, v_chal_o), var_yc, var_yo, stat)
         
         if v_wins:
-            v_icon = "[OK]" if v_champ_rec > 0 else "[NEW]"
-            print(f"  {v_icon} Var Recent MAE: Champ {v_champ_rec:.4f} vs Chal {v_chal_rec:.4f} >> AGGIORNATO")
+            v_icon = "[OK]" if v_champ_glob > 0 else "[NEW]"
+            print(f"  {v_icon} Var Global MAE: Champ {v_champ_glob:.4f} vs Chal {v_chal_glob:.4f} >> AGGIORNATO")
             joblib.dump(v_chal_c, os.path.join(VARIANCE_MODELS_DIR, f'variance_{stat}_casa.joblib'))
             joblib.dump(v_chal_o, os.path.join(VARIANCE_MODELS_DIR, f'variance_{stat}_ospite.joblib'))
             
-            v_mae_glob = (mean_absolute_error(var_yc, v_chal_c.predict(X)) + 
-                          mean_absolute_error(var_yo, v_chal_o.predict(X))) / 2
-            metrics[stat]['variance_mae'] = round(v_mae_glob, 4)
+            metrics[stat]['variance_mae'] = round(v_chal_glob, 4)
             metrics[stat]['variance_mae_recent'] = round(v_chal_rec, 4)
             metrics[stat]['variance_updated'] = True
         else:
-            print(f"  [--] Var Recent MAE: Champ {v_champ_rec:.4f} vs Chal {v_chal_rec:.4f} >> INVARIATO")
+            print(f"  [--] Var Global MAE: Champ {v_champ_glob:.4f} vs Chal {v_chal_glob:.4f} >> INVARIATO")
             metrics[stat]['variance_updated'] = False
             metrics[stat]['variance_mae_recent'] = round(v_champ_rec, 4)
-            
-            # Se la metrica globale manca o è 0, calcoliamola per il Champion attuale
-            if metrics[stat].get('variance_mae', 0) == 0:
-                try:
-                    vc_path = os.path.join(VARIANCE_MODELS_DIR, f'variance_{stat}_casa.joblib')
-                    vo_path = os.path.join(VARIANCE_MODELS_DIR, f'variance_{stat}_ospite.joblib')
-                    if os.path.exists(vc_path):
-                        v_champ_c = joblib.load(vc_path)
-                        v_champ_o = joblib.load(vo_path)
-                        v_mae_glob = (mean_absolute_error(var_yc, v_champ_c.predict(X)) + 
-                                      mean_absolute_error(var_yo, v_champ_o.predict(X))) / 2
-                        metrics[stat]['variance_mae'] = round(v_mae_glob, 4)
-                except: pass
+            metrics[stat]['variance_mae'] = round(v_champ_glob, 4)
 
         metrics[stat]['variance_model_type'] = 'xgb'
         metrics[stat]['variance_trained_at'] = datetime.now().isoformat()
