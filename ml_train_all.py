@@ -42,7 +42,6 @@ BEST_PARAMS_PATH = os.path.join(MODELS_DIR, 'best_params.json')
 COUNT_PATH      = os.path.join(MODELS_DIR, 'match_count.json')
 TUNE_EVERY_N    = 50   # trigger automatico Optuna ogni N nuove partite
 N_OPTUNA_TRIALS = 30   # trial per statistica (60 non migliorava il MAE, solo raddoppiava il tempo)
-HOLDOUT_N       = 30   # ultime N partite per champion vs challenger
 
 # Directory for variance models
 VARIANCE_MODELS_DIR = os.path.join(MODELS_DIR, 'variance')
@@ -418,30 +417,29 @@ def optuna_tune(ml_df, n_trials=N_OPTUNA_TRIALS):
 def champion_vs_challenger(stat, chal_mae_cv, metrics):
     """
     Valuta champion vs challenger usando il MAE Globale (CV).
-    Ritorna (better, mae_champ_cv, mae_champ_rec).
+    Ritorna (better, mae_champ_cv).
     Se il file .joblib non esiste sul disco, il challenger vince (nessun champion reale).
     """
     # Verifica che il modello champion esista fisicamente su disco
     champ_path = os.path.join(MODELS_DIR, f'model_{stat}_casa.joblib')
     if not os.path.exists(champ_path):
-        return True, 0.0, 0.0
+        return True, 0.0
 
     if stat not in metrics or 'mae' not in metrics[stat] or metrics[stat]['mae'] == 0:
-        return True, 0.0, 0.0
+        return True, 0.0
 
     mae_champ_cv = metrics[stat]['mae']
-    mae_champ_rec = metrics[stat].get('mae_recent', 0.0)
 
     # Vince chi ha il MAE Globale (CV) migliore (arrotondato per coerenza con il salvataggio)
     better = round(chal_mae_cv, 4) < round(mae_champ_cv, 4)
-    return better, mae_champ_cv, mae_champ_rec
+    return better, mae_champ_cv
 
 
 def champion_vs_challenger_variance(ml_df, challenger_models, target_var_c, target_var_o, stat):
     """
     Simile a champion_vs_challenger ma per i modelli di varianza.
     Ora utilizza il MAE Globale sull'intero dataset per maggiore stabilità.
-    Restituisce: (vince_challenger, mae_champ_glob, mae_chal_glob, mae_champ_rec, mae_chal_rec)
+    Restituisce: (vince_challenger, mae_champ_glob, mae_chal_glob)
     """
     champ_path_c = os.path.join(VARIANCE_MODELS_DIR, f'variance_{stat}_casa.joblib')
     champ_path_o = os.path.join(VARIANCE_MODELS_DIR, f'variance_{stat}_ospite.joblib')
@@ -450,22 +448,13 @@ def champion_vs_challenger_variance(ml_df, challenger_models, target_var_c, targ
     vc = target_var_c
     vo = target_var_o
 
-    holdout = ml_df.tail(HOLDOUT_N)
-    idx_h = holdout.index
-    X_h = holdout[get_feature_cols(stat)]
-    vc_h = target_var_c.loc[idx_h]
-    vo_h = target_var_o.loc[idx_h]
-
     chal_c, chal_o = challenger_models
     
     mae_chal_glob = (mean_absolute_error(vc, chal_c.predict(X)) +
                      mean_absolute_error(vo, chal_o.predict(X))) / 2
-                     
-    mae_chal_rec = (mean_absolute_error(vc_h, chal_c.predict(X_h)) +
-                    mean_absolute_error(vo_h, chal_o.predict(X_h))) / 2
 
     if not os.path.exists(champ_path_c) or not os.path.exists(champ_path_o):
-        return True, 0.0, mae_chal_glob, 0.0, mae_chal_rec  # NEW
+        return True, 0.0, mae_chal_glob  # NEW
 
     try:
         champ_c = joblib.load(champ_path_c)
@@ -473,13 +462,10 @@ def champion_vs_challenger_variance(ml_df, challenger_models, target_var_c, targ
         
         mae_champ_glob = (mean_absolute_error(vc, champ_c.predict(X)) +
                           mean_absolute_error(vo, champ_o.predict(X))) / 2
-                          
-        mae_champ_rec = (mean_absolute_error(vc_h, champ_c.predict(X_h)) +
-                         mean_absolute_error(vo_h, champ_o.predict(X_h))) / 2
     except:
-        return True, 0.0, mae_chal_glob, 0.0, mae_chal_rec  # Champion incompatibile
+        return True, 0.0, mae_chal_glob  # Champion incompatibile
 
-    return (mae_chal_glob < mae_champ_glob), mae_champ_glob, mae_chal_glob, mae_champ_rec, mae_chal_rec
+    return (mae_chal_glob < mae_champ_glob), mae_champ_glob, mae_chal_glob
 
 # ?????????????????????????????????????????????????????????????
 # TRAINING PRINCIPALE
@@ -539,14 +525,8 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
         yc = ml_df[f'target_{stat}_casa']
         yo = ml_df[f'target_{stat}_ospite']
 
-        holdout = ml_df.tail(HOLDOUT_N)
-        X_h, yc_h, yo_h = holdout[fcols], holdout[f'target_{stat}_casa'], holdout[f'target_{stat}_ospite']
-
         # --- SUPER CHALLENGER RACE (3 modelli + VotingEnsemble) ---
         race_results = {}
-        X_train_f = X.iloc[:-HOLDOUT_N]
-        yc_train_f = yc.iloc[:-HOLDOUT_N]
-        yo_train_f = yo.iloc[:-HOLDOUT_N]
 
         # Stack disponibile solo se Optuna ha i parametri per tutti e 3 gli algoritmi
         can_stack = (best_params and stat in best_params and
@@ -563,11 +543,7 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
                     maes_cv.append((mean_absolute_error(yc.iloc[te], mc.predict(X.iloc[te])) +
                                      mean_absolute_error(yo.iloc[te], mo.predict(X.iloc[te]))) / 2)
                 mae_cv_final = float(np.mean(maes_cv))
-                mc_f = build_ensemble(best_params, stat).fit(X_train_f, yc_train_f)
-                mo_f = build_ensemble(best_params, stat).fit(X_train_f, yo_train_f)
-                mae_rec_fair = (mean_absolute_error(yc_h, mc_f.predict(X_h)) +
-                                mean_absolute_error(yo_h, mo_f.predict(X_h))) / 2
-                race_results['stack'] = {'mae_cv': mae_cv_final, 'mae_rec': mae_rec_fair, 'params': {}}
+                race_results['stack'] = {'mae_cv': mae_cv_final, 'params': {}}
             else:
                 params = {}
                 if stat in best_params and mt in best_params[stat]:
@@ -584,19 +560,12 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
                                      mean_absolute_error(yo.iloc[te], mo.predict(X.iloc[te]))) / 2)
                 mae_cv_final = float(np.mean(maes_cv))
 
-                # 2. Calcolo MAE Recente "Fair" (Holdout Temporale) - Per trasparenza
-                mc_f = build_model(mt, params).fit(X_train_f, yc_train_f)
-                mo_f = build_model(mt, params).fit(X_train_f, yo_train_f)
-                mae_rec_fair = (mean_absolute_error(yc_h, mc_f.predict(X_h)) +
-                                mean_absolute_error(yo_h, mo_f.predict(X_h))) / 2
-
-                race_results[mt] = {'mae_cv': mae_cv_final, 'mae_rec': mae_rec_fair, 'params': params}
+                race_results[mt] = {'mae_cv': mae_cv_final, 'params': params}
         
         # Vincitore basato su CV MAE (Generalizzazione)
         mt_winner = min(race_results, key=lambda k: race_results[k]['mae_cv'])
         params_winner = race_results[mt_winner]['params']
         m_chal_cv  = race_results[mt_winner]['mae_cv']
-        m_chal_rec = race_results[mt_winner]['mae_rec']
 
         # Addestra il miglior Challenger sul set completo
         if mt_winner == 'stack':
@@ -619,7 +588,7 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
         feature_set_changed = (champ_n_features != 0 and champ_n_features != current_n_features)
 
         print(f"  Confronto con Champion attuale (Global CV MAE):")
-        challenger_wins, m_champ_cv, m_champ_rec = champion_vs_challenger(stat, m_chal_cv, metrics)
+        challenger_wins, m_champ_cv = champion_vs_challenger(stat, m_chal_cv, metrics)
 
         # Override: se il feature set è cambiato, il challenger vince sempre (evita mismatch)
         if feature_set_changed:
@@ -636,7 +605,6 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
             metrics[stat] = {
                 'model_type':  mt_winner,
                 'mae':         round(m_chal_cv, 4),
-                'mae_recent':  round(m_chal_rec, 4),
                 'champion_updated': True,
                 'trained_at':  datetime.now().isoformat(),
                 'n_samples':   len(ml_df),
@@ -658,7 +626,6 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
                 metrics[stat] = {
                     'model_type': mt_winner, 
                     'mae': round(m_chal_cv, 4), 
-                    'mae_recent': round(m_chal_rec, 4),
                     'champion_updated': False, 
                     'trained_at': datetime.now().isoformat(), 
                     'n_samples': len(ml_df),
@@ -680,7 +647,7 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
         v_chal_o = xgb.XGBRegressor(**var_params).fit(X, var_yo)
 
         # Variance Champion vs Challenger
-        v_wins, v_champ_glob, v_chal_glob, v_champ_rec, v_chal_rec = champion_vs_challenger_variance(ml_df, (v_chal_c, v_chal_o), var_yc, var_yo, stat)
+        v_wins, v_champ_glob, v_chal_glob = champion_vs_challenger_variance(ml_df, (v_chal_c, v_chal_o), var_yc, var_yo, stat)
         
         if v_wins:
             v_icon = "[OK]" if v_champ_glob > 0 else "[NEW]"
@@ -689,12 +656,10 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
             joblib.dump(v_chal_o, os.path.join(VARIANCE_MODELS_DIR, f'variance_{stat}_ospite.joblib'))
             
             metrics[stat]['variance_mae'] = round(v_chal_glob, 4)
-            metrics[stat]['variance_mae_recent'] = round(v_chal_rec, 4)
             metrics[stat]['variance_updated'] = True
         else:
             print(f"  [--] Var Global MAE: Champ {v_champ_glob:.4f} vs Chal {v_chal_glob:.4f} >> INVARIATO")
             metrics[stat]['variance_updated'] = False
-            metrics[stat]['variance_mae_recent'] = round(v_champ_rec, 4)
             metrics[stat]['variance_mae'] = round(v_champ_glob, 4)
 
         metrics[stat]['variance_model_type'] = 'xgb'
@@ -717,18 +682,17 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
     with open(VARIANCE_METRICS_PATH, 'w') as f:
         json.dump(variance_metrics, f, indent=2)
 
-    print(f"\n{'='*95}")
-    print(f" {'STATISTICA':12s} | {'MOD':3s} | {'MAE GLOBALE (CV)':16s} | {'MAE RECENTE':11s} | {'VAR MAE':7s} | {'STATUS'}")
-    print(f"{'='*95}")
+    print(f"\n{'='*80}")
+    print(f" {'STATISTICA':12s} | {'MOD':3s} | {'MAE GLOBALE (CV)':16s} | {'VAR MAE':7s} | {'STATUS'}")
+    print(f"{'='*80}")
     for s, m in metrics.items():
         m_upd = "MOD" if m['champion_updated'] else ""
         v_upd = "VAR" if m.get('variance_updated', False) else ""
         status = f"{m_upd} {v_upd}".strip() or "[--]"
         
         mae_glob = f"{m['mae']:.3f}"
-        mae_rec  = f"{m.get('mae_recent', 0):.3f}"
         var_mae  = f"{m.get('variance_mae', 0):.3f}"
-        print(f"  {s.upper():12s} | {m['model_type'].upper():3s} | {mae_glob:16s} | {mae_rec:11s} | {var_mae:7s} | {status}")
+        print(f"  {s.upper():12s} | {m['model_type'].upper():3s} | {mae_glob:16s} | {var_mae:7s} | {status}")
     print(f"\n[OK] Completato. Metriche -> {METRICS_PATH}")
     print(f"[OK] Variance Metriche -> {VARIANCE_METRICS_PATH}")
 
