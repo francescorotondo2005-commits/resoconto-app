@@ -601,6 +601,9 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
             
             joblib.dump(chal_c_final, os.path.join(MODELS_DIR, f'model_{stat}_casa.joblib'))
             joblib.dump(chal_o_final, os.path.join(MODELS_DIR, f'model_{stat}_ospite.joblib'))
+            
+            active_c_final = chal_c_final
+            active_o_final = chal_o_final
 
             metrics[stat] = {
                 'model_type':  mt_winner,
@@ -615,8 +618,9 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
             }
         else:
             print(f"  [--] CV MAE: Champ {m_champ_cv:.4f} vs Chal {m_chal_cv:.4f} >> CHAMPION RIMANE")
-            # NON ricarichiamo il vecchio champion dal disco: potrebbe avere un feature set diverso.
-            # Il challenger è già trainato sulle feature correnti: usiamo lui per il Variance Predictor.
+            
+            active_c_final = joblib.load(os.path.join(MODELS_DIR, f'model_{stat}_casa.joblib'))
+            active_o_final = joblib.load(os.path.join(MODELS_DIR, f'model_{stat}_ospite.joblib'))
 
             if stat in metrics:
                 metrics[stat]['champion_updated'] = False
@@ -637,8 +641,8 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
 
         # ===== MODEL B: Variance Predictor =====
         print(f"  Training Variance Predictor for {stat}...")
-        pred_c = chal_c_final.predict(X)
-        pred_o = chal_o_final.predict(X)
+        pred_c = active_c_final.predict(X)
+        pred_o = active_o_final.predict(X)
         var_yc = (yc - pred_c) ** 2
         var_yo = (yo - pred_o) ** 2
 
@@ -649,6 +653,10 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
         # Variance Champion vs Challenger
         v_wins, v_champ_glob, v_chal_glob = champion_vs_challenger_variance(ml_df, (v_chal_c, v_chal_o), var_yc, var_yo, stat)
         
+        # Se il modello EV è cambiato, forziamo l'aggiornamento della varianza (i vecchi residui non sono più validi)
+        if challenger_wins:
+            v_wins = True
+
         if v_wins:
             v_icon = "[OK]" if v_champ_glob > 0 else "[NEW]"
             print(f"  {v_icon} Var Global MAE: Champ {v_champ_glob:.4f} vs Chal {v_chal_glob:.4f} >> AGGIORNATO")
