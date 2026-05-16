@@ -277,13 +277,24 @@ export async function POST(request) {
       });
     }
 
-    // Sostituiamo anche le stime EV globali per farle visualizzare nelle schede in alto
+    // Sostituiamo anche le stime EV e SD globali per farle visualizzare nelle schede in alto
     if (mlPredictions) {
       for (const stat of Object.keys(evsd)) {
         if (mlPredictions[stat]) {
-          if (evsd[stat].casa) evsd[stat].casa.ev = mlPredictions[stat].casa;
-          if (evsd[stat].ospite) evsd[stat].ospite.ev = mlPredictions[stat].ospite;
-          if (evsd[stat].totale) evsd[stat].totale.ev = mlPredictions[stat].casa + mlPredictions[stat].ospite;
+          if (evsd[stat].casa) {
+            evsd[stat].casa.ev = mlPredictions[stat].casa;
+            if (mlPredictions[stat].casa_var) evsd[stat].casa.sd = Math.sqrt(mlPredictions[stat].casa_var);
+          }
+          if (evsd[stat].ospite) {
+            evsd[stat].ospite.ev = mlPredictions[stat].ospite;
+            if (mlPredictions[stat].ospite_var) evsd[stat].ospite.sd = Math.sqrt(mlPredictions[stat].ospite_var);
+          }
+          if (evsd[stat].totale) {
+            evsd[stat].totale.ev = mlPredictions[stat].casa + mlPredictions[stat].ospite;
+            const varCasa = mlPredictions[stat].casa_var || Math.pow(evsd[stat].casa.sd, 2);
+            const varOspite = mlPredictions[stat].ospite_var || Math.pow(evsd[stat].ospite.sd, 2);
+            evsd[stat].totale.sd = Math.sqrt(varCasa + varOspite);
+          }
         }
       }
     }
