@@ -148,8 +148,8 @@ function parseStatistics(statisticsArray) {
       for (const item of group.statisticsItems) {
         const validKeys = [
           'expectedGoals', 'cornerKicks', 'yellowCards', 'redCards',
-          'offsides', 'insideBoxShots', 'bigChanceCreated', 'ballPossession',
-          'shotsOnTarget', 'shots', 'fouls', 'saves',
+          'offsides', 'totalShotsInsideBox', 'bigChanceCreated', 'ballPossession',
+          'shotsOnGoal', 'totalShotsOnGoal', 'fouls', 'goalkeeperSaves',
         ];
         if (validKeys.includes(item.key)) {
           result[pName].home[item.key] = extractValue(item.homeValue);
@@ -280,10 +280,10 @@ async function fetchStatsAndRespond(sofaEvent) {
     // ── Campi visibili nel form (16) ─────────────────────────────────────────
     home_goals:   sofaEvent.homeScore?.current ?? null,
     away_goals:   sofaEvent.awayScore?.current ?? null,
-    home_shots:   A.home.shots ?? null,
-    away_shots:   A.away.shots ?? null,
-    home_sot:     A.home.shotsOnTarget ?? null,
-    away_sot:     A.away.shotsOnTarget ?? null,
+    home_shots:   A.home.totalShotsOnGoal ?? null,
+    away_shots:   A.away.totalShotsOnGoal ?? null,
+    home_sot:     A.home.shotsOnGoal ?? null,
+    away_sot:     A.away.shotsOnGoal ?? null,
     home_fouls:   A.home.fouls ?? null,
     away_fouls:   A.away.fouls ?? null,
     home_corners: A.home.cornerKicks ?? null,
@@ -292,8 +292,8 @@ async function fetchStatsAndRespond(sofaEvent) {
     away_yellows: A.away.yellowCards ?? null,
     home_reds:    A.home.redCards ?? null,
     away_reds:    A.away.redCards ?? null,
-    home_saves:   A.home.saves ?? null,
-    away_saves:   A.away.saves ?? null,
+    home_saves:   A.home.goalkeeperSaves ?? null,
+    away_saves:   A.away.goalkeeperSaves ?? null,
 
     // ── Campi SofaScore silenzioso (20) ─────────────────────────────────────
     home_xg:               A.home.expectedGoals ?? null,
@@ -310,8 +310,8 @@ async function fetchStatsAndRespond(sofaEvent) {
     away_reds_ht:          H.away.redCards ?? null,
     home_offsides:         A.home.offsides ?? null,
     away_offsides:         A.away.offsides ?? null,
-    home_shots_insidebox:  A.home.insideBoxShots ?? null,
-    away_shots_insidebox:  A.away.insideBoxShots ?? null,
+    home_shots_insidebox:  A.home.totalShotsInsideBox ?? null,
+    away_shots_insidebox:  A.away.totalShotsInsideBox ?? null,
     home_big_chances:      A.home.bigChanceCreated ?? null,
     away_big_chances:      A.away.bigChanceCreated ?? null,
     home_possession:       A.home.ballPossession ?? null,
