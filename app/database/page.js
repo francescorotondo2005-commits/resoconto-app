@@ -91,13 +91,18 @@ export default function DatabasePage() {
     setSofaLoading(true);
     setSofaData(null);
     try {
+      console.log(`[SofaFetch] Richiesta manuale: "${form.home_team}" vs "${form.away_team}" del ${form.date}`);
       const res = await fetch('/api/sofascore-fetch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ home_team: form.home_team, away_team: form.away_team, date: form.date }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Errore fetch SofaScore');
+      console.log('[SofaFetch] Risposta API completa:', json);
+      if (!res.ok) {
+        const debugInfo = json.debug ? `\nPartite SofaScore trovate per quella data: ${(json.debug.finishedGamesOnDate || []).join(' | ') || 'nessuna'}` : '';
+        throw new Error((json.error || 'Errore fetch SofaScore') + debugInfo);
+      }
 
       const d = json.data;
       // Pre-compila i 16 campi visibili del form
@@ -224,11 +229,11 @@ export default function DatabasePage() {
   }
 
   async function loadPendingMatchIntoForm(pm) {
-    // 1. Pre-compila i campi base dal pending match
     const matchDate = pm.date
       ? pm.date.split('T')[0]
       : new Date().toISOString().split('T')[0];
 
+    // 1. Pre-compila i campi base dal pending match
     setForm(prev => ({
       ...prev,
       league: pm.league,
@@ -239,64 +244,63 @@ export default function DatabasePage() {
     }));
     setSofaData(null);
 
-    // 2. Chiede conferma per il fetch SofaScore
-    const confirmed = window.confirm(
-      `Vuoi recuperare automaticamente le statistiche di\n"${pm.home_team} vs ${pm.away_team}"\nda SofaScore?\n\n(Se dici No, puoi sempre compilare a mano o cliccare il pulsante dopo.)`
-    );
+    // 2. Fetch SofaScore direttamente, senza conferma
+    setSofaLoading(true);
+    try {
+      console.log(`[SofaFetch] Richiesta: "${pm.home_team}" vs "${pm.away_team}" del ${matchDate}`);
+      const res = await fetch('/api/sofascore-fetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ home_team: pm.home_team, away_team: pm.away_team, date: matchDate }),
+      });
+      const json = await res.json();
+      console.log('[SofaFetch] Risposta API completa:', json);
 
-    if (confirmed) {
-      // Piccolo delay per lasciar aggiornare lo state del form
-      setTimeout(async () => {
-        setSofaLoading(true);
-        setSofaData(null);
-        try {
-          const res = await fetch('/api/sofascore-fetch', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ home_team: pm.home_team, away_team: pm.away_team, date: matchDate }),
-          });
-          const json = await res.json();
-          if (!res.ok) throw new Error(json.error || 'Errore fetch SofaScore');
-          const d = json.data;
-          setForm(prev => ({
-            ...prev,
-            home_goals:   d.home_goals ?? prev.home_goals,
-            away_goals:   d.away_goals ?? prev.away_goals,
-            home_shots:   d.home_shots ?? prev.home_shots,
-            away_shots:   d.away_shots ?? prev.away_shots,
-            home_sot:     d.home_sot   ?? prev.home_sot,
-            away_sot:     d.away_sot   ?? prev.away_sot,
-            home_fouls:   d.home_fouls ?? prev.home_fouls,
-            away_fouls:   d.away_fouls ?? prev.away_fouls,
-            home_corners: d.home_corners ?? prev.home_corners,
-            away_corners: d.away_corners ?? prev.away_corners,
-            home_yellows: d.home_yellows ?? prev.home_yellows,
-            away_yellows: d.away_yellows ?? prev.away_yellows,
-            home_reds:    d.home_reds   ?? prev.home_reds,
-            away_reds:    d.away_reds   ?? prev.away_reds,
-            home_saves:   d.home_saves  ?? prev.home_saves,
-            away_saves:   d.away_saves  ?? prev.away_saves,
-          }));
-          setSofaData({
-            home_xg: d.home_xg, away_xg: d.away_xg,
-            home_xg_ht: d.home_xg_ht, away_xg_ht: d.away_xg_ht,
-            home_goals_ht: d.home_goals_ht, away_goals_ht: d.away_goals_ht,
-            home_corners_ht: d.home_corners_ht, away_corners_ht: d.away_corners_ht,
-            home_yellows_ht: d.home_yellows_ht, away_yellows_ht: d.away_yellows_ht,
-            home_reds_ht: d.home_reds_ht, away_reds_ht: d.away_reds_ht,
-            home_offsides: d.home_offsides, away_offsides: d.away_offsides,
-            home_shots_insidebox: d.home_shots_insidebox, away_shots_insidebox: d.away_shots_insidebox,
-            home_big_chances: d.home_big_chances, away_big_chances: d.away_big_chances,
-            home_possession: d.home_possession, away_possession: d.away_possession,
-          });
-          setToast({ type: 'success', message: `✅ Dati SofaScore caricati per ${d.sofaHomeName} vs ${d.sofaAwayName}` });
-        } catch (e) {
-          setToast({ type: 'error', message: `❌ SofaScore: ${e.message}` });
-        }
-        setSofaLoading(false);
-        setTimeout(() => setToast(null), 5000);
-      }, 100);
+      if (!res.ok) {
+        const debugInfo = json.debug ? `\nPartite trovate su SofaScore: ${(json.debug.finishedGamesOnDate || []).join(', ') || 'nessuna'}` : '';
+        throw new Error((json.error || 'Errore SofaScore') + debugInfo);
+      }
+
+      const d = json.data;
+      console.log('[SofaFetch] Dati ricevuti:', d);
+      setForm(prev => ({
+        ...prev,
+        home_goals:   d.home_goals ?? prev.home_goals,
+        away_goals:   d.away_goals ?? prev.away_goals,
+        home_shots:   d.home_shots ?? prev.home_shots,
+        away_shots:   d.away_shots ?? prev.away_shots,
+        home_sot:     d.home_sot   ?? prev.home_sot,
+        away_sot:     d.away_sot   ?? prev.away_sot,
+        home_fouls:   d.home_fouls ?? prev.home_fouls,
+        away_fouls:   d.away_fouls ?? prev.away_fouls,
+        home_corners: d.home_corners ?? prev.home_corners,
+        away_corners: d.away_corners ?? prev.away_corners,
+        home_yellows: d.home_yellows ?? prev.home_yellows,
+        away_yellows: d.away_yellows ?? prev.away_yellows,
+        home_reds:    d.home_reds   ?? prev.home_reds,
+        away_reds:    d.away_reds   ?? prev.away_reds,
+        home_saves:   d.home_saves  ?? prev.home_saves,
+        away_saves:   d.away_saves  ?? prev.away_saves,
+      }));
+      setSofaData({
+        home_xg: d.home_xg, away_xg: d.away_xg,
+        home_xg_ht: d.home_xg_ht, away_xg_ht: d.away_xg_ht,
+        home_goals_ht: d.home_goals_ht, away_goals_ht: d.away_goals_ht,
+        home_corners_ht: d.home_corners_ht, away_corners_ht: d.away_corners_ht,
+        home_yellows_ht: d.home_yellows_ht, away_yellows_ht: d.away_yellows_ht,
+        home_reds_ht: d.home_reds_ht, away_reds_ht: d.away_reds_ht,
+        home_offsides: d.home_offsides, away_offsides: d.away_offsides,
+        home_shots_insidebox: d.home_shots_insidebox, away_shots_insidebox: d.away_shots_insidebox,
+        home_big_chances: d.home_big_chances, away_big_chances: d.away_big_chances,
+        home_possession: d.home_possession, away_possession: d.away_possession,
+      });
+      setToast({ type: 'success', message: `✅ Dati SofaScore: ${d.sofaHomeName} vs ${d.sofaAwayName}` });
+    } catch (e) {
+      console.error('[SofaFetch] Errore:', e.message);
+      setToast({ type: 'error', message: `❌ ${e.message}` });
     }
+    setSofaLoading(false);
+    setTimeout(() => setToast(null), 6000);
   }
 
   async function handleExportDB() {
