@@ -460,7 +460,7 @@ export default function DatabasePage() {
               </div>
 
               {/* Pulsante SofaScore — visibile quando i 3 campi chiave sono compilati */}
-              {form.home_team && form.away_team && form.date && !editMatchId && (
+              {form.home_team && form.away_team && form.date && (
                 <div style={{ margin: '8px 0 16px' }}>
                   <button
                     type="button"
