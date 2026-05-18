@@ -72,9 +72,30 @@ function matchTeam(dbName, sofaName) {
 }
 
 // ─── SofaScore API fetcher (https nativo — stesso trick del backfill) ─────────
-function fetchJson(url) {
+async function fetchJson(url) {
+  // Se siamo su Vercel, deleghiamo la richiesta al servizio locale via ngrok
+  const scraperUrl = process.env.SCRAPER_SERVICE_URL;
+  if (scraperUrl) {
+    console.log(`[SofaFetch] PROXY tramite scraper-service: ${url}`);
+    const proxyUrl = `${scraperUrl.replace(/\/$/, '')}/proxy-sofascore?url=${encodeURIComponent(url)}`;
+    try {
+      const res = await fetch(proxyUrl, {
+        headers: { 'ngrok-skip-browser-warning': 'true' }
+      });
+      if (!res.ok) {
+        console.error(`[SofaFetch] ❌ Proxy ha risposto ${res.status}`);
+        return null;
+      }
+      return await res.json();
+    } catch (e) {
+      console.error(`[SofaFetch] ❌ Errore Proxy: ${e.message}`);
+      return null;
+    }
+  }
+
+  // Fallback (locale)
   return new Promise((resolve) => {
-    console.log(`[SofaFetch] GET ${url}`);
+    console.log(`[SofaFetch] GET Locale ${url}`);
     const options = {
       agent: false,
       headers: {
@@ -98,7 +119,6 @@ function fetchJson(url) {
       res.on('end', () => {
         try {
           const parsed = JSON.parse(data);
-          console.log(`[SofaFetch] ✅ Parsed OK, keys: ${Object.keys(parsed).join(', ')}`);
           resolve(parsed);
         } catch (e) {
           console.error(`[SofaFetch] ❌ JSON parse error: ${e.message}`);
