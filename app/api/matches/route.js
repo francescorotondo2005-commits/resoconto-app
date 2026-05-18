@@ -63,8 +63,18 @@ export async function POST(request) {
           home_goals, away_goals, home_shots, away_shots, home_sot, away_sot,
           home_fouls, away_fouls, home_corners, away_corners,
           home_yellows, away_yellows, home_reds, away_reds,
-          home_saves, away_saves, referee)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          home_saves, away_saves, referee,
+          home_xg, away_xg, home_xg_ht, away_xg_ht,
+          home_goals_ht, away_goals_ht,
+          home_corners_ht, away_corners_ht,
+          home_yellows_ht, away_yellows_ht,
+          home_reds_ht, away_reds_ht,
+          home_offsides, away_offsides,
+          home_shots_insidebox, away_shots_insidebox,
+          home_big_chances, away_big_chances,
+          home_possession, away_possession)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       args: [
         match.league, match.matchday || null, match.date,
@@ -77,7 +87,17 @@ export async function POST(request) {
         match.home_yellows, match.away_yellows,
         match.home_reds, match.away_reds,
         match.home_saves || null, match.away_saves || null,
-        match.referee || null
+        match.referee || null,
+        match.home_xg ?? null, match.away_xg ?? null,
+        match.home_xg_ht ?? null, match.away_xg_ht ?? null,
+        match.home_goals_ht ?? null, match.away_goals_ht ?? null,
+        match.home_corners_ht ?? null, match.away_corners_ht ?? null,
+        match.home_yellows_ht ?? null, match.away_yellows_ht ?? null,
+        match.home_reds_ht ?? null, match.away_reds_ht ?? null,
+        match.home_offsides ?? null, match.away_offsides ?? null,
+        match.home_shots_insidebox ?? null, match.away_shots_insidebox ?? null,
+        match.home_big_chances ?? null, match.away_big_chances ?? null,
+        match.home_possession ?? null, match.away_possession ?? null,
       ]
     });
 
@@ -271,7 +291,16 @@ export async function PATCH(request) {
           home_goals = ?, away_goals = ?, home_shots = ?, away_shots = ?, home_sot = ?, away_sot = ?,
           home_fouls = ?, away_fouls = ?, home_corners = ?, away_corners = ?,
           home_yellows = ?, away_yellows = ?, home_reds = ?, away_reds = ?,
-          home_saves = ?, away_saves = ?
+          home_saves = ?, away_saves = ?,
+          home_xg = ?, away_xg = ?, home_xg_ht = ?, away_xg_ht = ?,
+          home_goals_ht = ?, away_goals_ht = ?,
+          home_corners_ht = ?, away_corners_ht = ?,
+          home_yellows_ht = ?, away_yellows_ht = ?,
+          home_reds_ht = ?, away_reds_ht = ?,
+          home_offsides = ?, away_offsides = ?,
+          home_shots_insidebox = ?, away_shots_insidebox = ?,
+          home_big_chances = ?, away_big_chances = ?,
+          home_possession = ?, away_possession = ?
         WHERE id = ?
       `,
       args: [
@@ -280,6 +309,16 @@ export async function PATCH(request) {
         match.home_fouls, match.away_fouls, match.home_corners, match.away_corners,
         match.home_yellows, match.away_yellows, match.home_reds, match.away_reds,
         match.home_saves || null, match.away_saves || null,
+        match.home_xg ?? null, match.away_xg ?? null,
+        match.home_xg_ht ?? null, match.away_xg_ht ?? null,
+        match.home_goals_ht ?? null, match.away_goals_ht ?? null,
+        match.home_corners_ht ?? null, match.away_corners_ht ?? null,
+        match.home_yellows_ht ?? null, match.away_yellows_ht ?? null,
+        match.home_reds_ht ?? null, match.away_reds_ht ?? null,
+        match.home_offsides ?? null, match.away_offsides ?? null,
+        match.home_shots_insidebox ?? null, match.away_shots_insidebox ?? null,
+        match.home_big_chances ?? null, match.away_big_chances ?? null,
+        match.home_possession ?? null, match.away_possession ?? null,
         match.id
       ]
     });

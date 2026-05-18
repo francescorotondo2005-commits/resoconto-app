@@ -31,6 +31,8 @@ export default function DatabasePage() {
   const [retraining, setRetraining] = useState(false);
   const [viewMode, setViewMode] = useState('add'); // 'add' | 'view' | 'import'
   const [editMatchId, setEditMatchId] = useState(null);
+  const [sofaLoading, setSofaLoading] = useState(false);
+  const [sofaData, setSofaData] = useState(null); // i 20 campi nascosti SofaScore
 
   const [teams, setTeams] = useState([]);
   const [referees, setReferees] = useState([]);
@@ -77,6 +79,66 @@ export default function DatabasePage() {
 
   function handleFormChange(field, value) {
     setForm(prev => ({ ...prev, [field]: value }));
+    // Se cambio squadra o data, invalida i dati SofaScore precedenti
+    if (['home_team', 'away_team', 'date'].includes(field)) setSofaData(null);
+  }
+
+  async function fetchSofa() {
+    if (!form.home_team || !form.away_team || !form.date) {
+      setToast({ type: 'error', message: '⚠️ Inserisci squadra casa, ospite e data prima di recuperare da SofaScore.' });
+      return;
+    }
+    setSofaLoading(true);
+    setSofaData(null);
+    try {
+      const res = await fetch('/api/sofascore-fetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ home_team: form.home_team, away_team: form.away_team, date: form.date }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Errore fetch SofaScore');
+
+      const d = json.data;
+      // Pre-compila i 16 campi visibili del form
+      setForm(prev => ({
+        ...prev,
+        home_goals:   d.home_goals ?? prev.home_goals,
+        away_goals:   d.away_goals ?? prev.away_goals,
+        home_shots:   d.home_shots ?? prev.home_shots,
+        away_shots:   d.away_shots ?? prev.away_shots,
+        home_sot:     d.home_sot   ?? prev.home_sot,
+        away_sot:     d.away_sot   ?? prev.away_sot,
+        home_fouls:   d.home_fouls ?? prev.home_fouls,
+        away_fouls:   d.away_fouls ?? prev.away_fouls,
+        home_corners: d.home_corners ?? prev.home_corners,
+        away_corners: d.away_corners ?? prev.away_corners,
+        home_yellows: d.home_yellows ?? prev.home_yellows,
+        away_yellows: d.away_yellows ?? prev.away_yellows,
+        home_reds:    d.home_reds   ?? prev.home_reds,
+        away_reds:    d.away_reds   ?? prev.away_reds,
+        home_saves:   d.home_saves  ?? prev.home_saves,
+        away_saves:   d.away_saves  ?? prev.away_saves,
+      }));
+      // Salva silenziosamente i 20 campi SofaScore
+      setSofaData({
+        home_xg: d.home_xg, away_xg: d.away_xg,
+        home_xg_ht: d.home_xg_ht, away_xg_ht: d.away_xg_ht,
+        home_goals_ht: d.home_goals_ht, away_goals_ht: d.away_goals_ht,
+        home_corners_ht: d.home_corners_ht, away_corners_ht: d.away_corners_ht,
+        home_yellows_ht: d.home_yellows_ht, away_yellows_ht: d.away_yellows_ht,
+        home_reds_ht: d.home_reds_ht, away_reds_ht: d.away_reds_ht,
+        home_offsides: d.home_offsides, away_offsides: d.away_offsides,
+        home_shots_insidebox: d.home_shots_insidebox, away_shots_insidebox: d.away_shots_insidebox,
+        home_big_chances: d.home_big_chances, away_big_chances: d.away_big_chances,
+        home_possession: d.home_possession, away_possession: d.away_possession,
+      });
+      setToast({ type: 'success', message: `✅ Dati SofaScore caricati per ${d.sofaHomeName} vs ${d.sofaAwayName}` });
+    } catch (e) {
+      setToast({ type: 'error', message: `❌ ${e.message}` });
+    }
+    setSofaLoading(false);
+    setTimeout(() => setToast(null), 4000);
   }
 
   async function handleSubmit(e) {
@@ -87,6 +149,7 @@ export default function DatabasePage() {
       
       const payload = {
         ...form,
+        ...(sofaData || {}),        // ← merge silenzioso dei 20 campi SofaScore
         id: editMatchId,
         home_goals: Number(form.home_goals), away_goals: Number(form.away_goals),
         home_shots: Number(form.home_shots), away_shots: Number(form.away_shots),
@@ -108,6 +171,7 @@ export default function DatabasePage() {
       if (res.ok) {
         setToast({ type: 'success', message: `✅ ${form.home_team} vs ${form.away_team} ${editMatchId ? 'modificata' : 'salvata'}!` });
         setForm({ ...EMPTY_MATCH, league: form.league, date: form.date });
+        setSofaData(null);
         setEditMatchId(null);
         if (editMatchId) setViewMode('view');
         loadMatches();
@@ -323,6 +387,30 @@ export default function DatabasePage() {
                   <input type="text" list="db-teams-list" value={form.away_team} onChange={e => handleFormChange('away_team', e.target.value)} placeholder="es. Cagliari" required />
                 </div>
               </div>
+
+              {/* Pulsante SofaScore — visibile quando i 3 campi chiave sono compilati */}
+              {form.home_team && form.away_team && form.date && !editMatchId && (
+                <div style={{ margin: '8px 0 16px' }}>
+                  <button
+                    type="button"
+                    id="sofa-fetch-btn"
+                    className={`btn btn-primary btn-sm`}
+                    onClick={fetchSofa}
+                    disabled={sofaLoading}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                  >
+                    {sofaLoading
+                      ? <><span className="loading-spinner" /> Recupero da SofaScore...</>
+                      : '🔄 Recupera statistiche da SofaScore'}
+                  </button>
+                  {sofaData && (
+                    <span style={{ marginLeft: 12, fontSize: 12, color: 'var(--accent-green, #22c55e)', fontWeight: 600 }}>
+                      ✅ xG: {sofaData.home_xg ?? '—'} – {sofaData.away_xg ?? '—'} &nbsp;|&nbsp;
+                      Possesso: {sofaData.home_possession ?? '—'}% – {sofaData.away_possession ?? '—'}%
+                    </span>
+                  )}
+                </div>
+              )}
 
               <datalist id="db-teams-list">
                 {leagueTeams.map(t => <option key={t} value={t} />)}
