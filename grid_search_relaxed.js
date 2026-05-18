@@ -68,7 +68,7 @@ async function start() {
     if (b.ref_hist_pct !== null) hParts.push(b.ref_hist_pct);
     const hMin = hParts.length >= 4 ? Math.min(...hParts) : null;
 
-    bets.push({ win, profit, edge: b.best_edge || 0, prob: b.probability || 0,
+    bets.push({ win, profit, edge: b.best_edge || 0, prob: b.probability || 0, cv: b.cv || 0,
       formScore, fMin, histScore, hMin });
   }
 
@@ -83,8 +83,9 @@ async function start() {
   const histSingThresholds = uniqueSortedThresholds([0, ...bets.map(b => b.hMin).filter(v => v !== null)], 0, 1.0);
   const formAvgThresholds  = uniqueSortedThresholds(bets.map(b => b.formScore), 0, 1.0);
   const formSingThresholds = uniqueSortedThresholds([0, ...bets.map(b => b.fMin).filter(v => v !== null)], 0, 1.0);
+  const cvThresholds = [1.0, 0.9, 0.8, 0.7, 0.6, 0.5];
 
-  console.log(`Soglie: edge(${edgeThresholds.length}) prob(${probThresholds.length}) hAvg(${histAvgThresholds.length}) hSng(${histSingThresholds.length}) fAvg(${formAvgThresholds.length}) fSng(${formSingThresholds.length})`);
+  console.log(`Soglie: edge(${edgeThresholds.length}) prob(${probThresholds.length}) hAvg(${histAvgThresholds.length}) hSng(${histSingThresholds.length}) fAvg(${formAvgThresholds.length}) fSng(${formSingThresholds.length}) cv(${cvThresholds.length})`);
 
   // Accumula tutto in una Map deduplica per (total|wins|profit)
   // Nessun sort durante il loop — solo alla fine
@@ -126,23 +127,28 @@ async function start() {
 
               if (finalBets.length < MIN_BETS) break;
 
-              totalTested++;
+              for (const maxCV of cvThresholds) {
+                const cvBets = maxCV === 1.0 ? finalBets : finalBets.filter(b => b.cv <= maxCV);
+                if (cvBets.length < MIN_BETS) continue;
 
-              const total = finalBets.length;
-              const wins = finalBets.filter(b => b.win).length;
-              const winRate = wins / total;
+                totalTested++;
 
-              if (winRate >= MIN_WINRATE) {
-                const profit = finalBets.reduce((s, b) => s + b.profit, 0);
-                const yieldPct = profit / total;
-                const key = `${total}|${wins}|${profit.toFixed(4)}`;
+                const total = cvBets.length;
+                const wins = cvBets.filter(b => b.win).length;
+                const winRate = wins / total;
 
-                // Salva solo il primo rappresentante per ogni chiave unica
-                if (!allResults.has(key)) {
-                  allResults.set(key, {
-                    total, wins, winRate, profit, yieldPct,
-                    params: { minEdge, minProb, minHistAvg, minHistSingle, minFormAvg, minFormSingle }
-                  });
+                if (winRate >= MIN_WINRATE) {
+                  const profit = cvBets.reduce((s, b) => s + b.profit, 0);
+                  const yieldPct = profit / total;
+                  const key = `${total}|${wins}|${profit.toFixed(4)}`;
+
+                  // Salva solo il primo rappresentante per ogni chiave unica
+                  if (!allResults.has(key)) {
+                    allResults.set(key, {
+                      total, wins, winRate, profit, yieldPct,
+                      params: { minEdge, minProb, minHistAvg, minHistSingle, minFormAvg, minFormSingle, maxCV }
+                    });
+                  }
                 }
               }
             }

@@ -1,0 +1,51 @@
+{
+  "gol": {
+    "n_estimators": 52,
+    "max_depth": 2,
+    "learning_rate": 0.010478840943194557,
+    "subsample": 0.6050371957131088,
+    "colsample_bytree": 0.8557541514747081
+  },
+  "tiri": {
+    "n_estimators": 50,
+    "max_depth": 3,
+    "learning_rate": 0.02676292781430695,
+    "subsample": 0.9882542447713574,
+    "colsample_bytree": 0.9917010195250431
+  },
+  "tip": {
+    "n_estimators": 52,
+    "max_depth": 2,
+    "learning_rate": 0.010177398758326586,
+    "subsample": 0.6356750023756239,
+    "colsample_bytree": 0.9999898314104797
+  },
+  "falli": {
+    "n_estimators": 96,
+    "max_depth": 2,
+    "learning_rate": 0.010312121629962812,
+    "subsample": 0.7149707317409983,
+    "colsample_bytree": 0.6300155465287618
+  },
+  "corner": {
+    "n_estimators": 117,
+    "max_depth": 2,
+    "learning_rate": 0.017313649456839574,
+    "subsample": 0.9969563919291474,
+    "colsample_bytree": 0.6785631414658232
+  },
+  "cartellini": {
+    "n_estimators": 55,
+    "max_depth": 2,
+    "learning_rate": 0.019794068705121206,
+    "subsample": 0.9525303423709818,
+    "colsample_bytree": 0.7821310777460667
+  },
+  "parate": {
+    "n_estimators": 52,
+    "max_depth": 2,
+    "learning_rate": 0.010518906884863953,
+    "subsample": 0.7445421119238388,
+    "colsample_bytree": 0.7040529780300973
+  }
+}

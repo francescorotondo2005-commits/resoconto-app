@@ -3,6 +3,7 @@ import numpy as np
 import shap
 import xgboost as xgb
 import os
+os.environ["PYTHONWARNINGS"] = "ignore"
 from ml_train_all import load_data, feature_engineering, STATS, get_feature_cols
 
 def format_feature_name(feat, stat):

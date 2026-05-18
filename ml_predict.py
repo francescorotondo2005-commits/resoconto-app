@@ -8,13 +8,19 @@ import warnings
 import sys
 import os
 
+os.environ["PYTHONWARNINGS"] = "ignore"
 warnings.filterwarnings('ignore')
 
 # Sopprimi completamente i warning su stderr per evitare crash nel buffer Node.js
 sys.stderr = open(os.devnull, 'w')
 
 # Importa le funzioni condivise da ml_train_all
-from ml_train_all import STATS, get_stat, get_feature_cols, _avg, MODELS_DIR, VARIANCE_MODELS_DIR
+from ml_train_all import (
+    STATS, HIT_RATE_THRESHOLDS,
+    get_stat, get_feature_cols,
+    _avg, _hit_rate, _median, _std,
+    MODELS_DIR, VARIANCE_MODELS_DIR
+)
 
 # ─────────────────────────────────────────────────────────────
 # CALCOLO FEATURE PER LA PREDIZIONE
@@ -99,6 +105,29 @@ def build_features_for_match(home, away, ref, team_hist, ref_hist):
             ref_vals = ref_hist.get(ref, {}).get(s, [])
             fallback = features[f'f_{s}_h_for5'] + features[f'f_{s}_a_for5']
             features[f'f_{s}_ref'] = _avg(ref_vals, 10) if ref_vals else fallback
+
+        # --- NUOVE FEATURE: Hit Rates, Deviazione Standard, Mediana ---
+        # (identiche a feature_engineering in ml_train_all.py)
+        thresholds = HIT_RATE_THRESHOLDS[s]
+        for i, thr in enumerate(thresholds, 1):
+            features[f'f_{s}_h_for_hr{i}']      = _hit_rate(h['for_all'],  10, thr)
+            features[f'f_{s}_h_ag_hr{i}']       = _hit_rate(h['ag_all'],   10, thr)
+            features[f'f_{s}_h_spec_for_hr{i}'] = _hit_rate(h['home_for'], 10, thr)
+            features[f'f_{s}_h_spec_ag_hr{i}']  = _hit_rate(h['home_ag'],  10, thr)
+            features[f'f_{s}_a_for_hr{i}']      = _hit_rate(a['for_all'],  10, thr)
+            features[f'f_{s}_a_ag_hr{i}']       = _hit_rate(a['ag_all'],   10, thr)
+            features[f'f_{s}_a_spec_for_hr{i}'] = _hit_rate(a['away_for'], 10, thr)
+            features[f'f_{s}_a_spec_ag_hr{i}']  = _hit_rate(a['away_ag'],  10, thr)
+        # Deviazione Standard (ultime 10)
+        features[f'f_{s}_h_for_std'] = _std(h['for_all'], 10)
+        features[f'f_{s}_h_ag_std']  = _std(h['ag_all'],  10)
+        features[f'f_{s}_a_for_std'] = _std(a['for_all'], 10)
+        features[f'f_{s}_a_ag_std']  = _std(a['ag_all'],  10)
+        # Mediana (ultime 10)
+        features[f'f_{s}_h_for_med'] = _median(h['for_all'], 10)
+        features[f'f_{s}_h_ag_med']  = _median(h['ag_all'],  10)
+        features[f'f_{s}_a_for_med'] = _median(a['for_all'], 10)
+        features[f'f_{s}_a_ag_med']  = _median(a['ag_all'],  10)
 
     return features
 

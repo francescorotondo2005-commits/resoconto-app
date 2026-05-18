@@ -74,6 +74,7 @@ function matchTeam(dbName, sofaName) {
 // ─── SofaScore API fetcher (https nativo — stesso trick del backfill) ─────────
 function fetchJson(url) {
   return new Promise((resolve) => {
+    console.log(`[SofaFetch] GET ${url}`);
     const options = {
       agent: false,
       headers: {
@@ -87,13 +88,27 @@ function fetchJson(url) {
       },
     };
     https.get(url, options, (res) => {
-      if (res.statusCode !== 200) return resolve(null);
+      console.log(`[SofaFetch] Status: ${res.statusCode} for ${url}`);
+      if (res.statusCode !== 200) {
+        console.error(`[SofaFetch] ❌ Non-200 status ${res.statusCode} — resolving null`);
+        return resolve(null);
+      }
       let data = '';
       res.on('data', (c) => (data += c));
       res.on('end', () => {
-        try { resolve(JSON.parse(data)); } catch { resolve(null); }
+        try {
+          const parsed = JSON.parse(data);
+          console.log(`[SofaFetch] ✅ Parsed OK, keys: ${Object.keys(parsed).join(', ')}`);
+          resolve(parsed);
+        } catch (e) {
+          console.error(`[SofaFetch] ❌ JSON parse error: ${e.message}`);
+          resolve(null);
+        }
       });
-    }).on('error', () => resolve(null));
+    }).on('error', (e) => {
+      console.error(`[SofaFetch] ❌ Network error: ${e.message}`);
+      resolve(null);
+    });
   });
 }
 
@@ -130,6 +145,9 @@ function parseStatistics(statisticsArray) {
 export async function POST(request) {
   try {
     const { home_team, away_team, date } = await request.json();
+    console.log(`\n[SofaFetch] ═══════════════════════════════════════`);
+    console.log(`[SofaFetch] Richiesta: "${home_team}" vs "${away_team}" del ${date}`);
+    console.log(`[SofaFetch] Norm casa: "${normalizeTeamName(home_team)}" | Norm ospite: "${normalizeTeamName(away_team)}"`);
 
     if (!home_team || !away_team || !date) {
       return NextResponse.json({ error: 'Parametri mancanti: home_team, away_team, date' }, { status: 400 });
@@ -141,52 +159,93 @@ export async function POST(request) {
     );
 
     if (!eventsData?.events) {
+      console.error(`[SofaFetch] ❌ Nessun evento nella risposta API per ${date}. eventsData: ${JSON.stringify(eventsData)?.slice(0,200)}`);
       return NextResponse.json({ error: `Nessun evento trovato su SofaScore per il ${date}` }, { status: 404 });
     }
 
-    const finishedEvents = eventsData.events.filter(
-      (e) => e.status?.type === 'finished'
-    );
+    const allEvents = eventsData.events;
+    const finishedEvents = allEvents.filter((e) => e.status?.type === 'finished');
+    console.log(`[SofaFetch] Totale eventi: ${allEvents.length}, di cui conclusi: ${finishedEvents.length}`);
+    console.log(`[SofaFetch] Partite concluse trovate:`);
+    finishedEvents.forEach(e => {
+      console.log(`  - "${e.homeTeam.name}" vs "${e.awayTeam.name}" (norm: "${normalizeTeamName(e.homeTeam.name)}" vs "${normalizeTeamName(e.awayTeam.name)}")`);
+    });
 
     // 2. Cerca la partita corrispondente con fuzzy matching
-    const sofaEvent = finishedEvents.find(
-      (e) => matchTeam(home_team, e.homeTeam.name) && matchTeam(away_team, e.awayTeam.name)
-    );
+    let sofaEvent = null;
+    for (const e of finishedEvents) {
+      const homeNorm = normalizeTeamName(e.homeTeam.name);
+      const awayNorm = normalizeTeamName(e.awayTeam.name);
+      const reqHomeNorm = normalizeTeamName(home_team);
+      const reqAwayNorm = normalizeTeamName(away_team);
+      const homeScore = getSimilarity(reqHomeNorm, homeNorm);
+      const awayScore = getSimilarity(reqAwayNorm, awayNorm);
+      const homeMatch = homeScore > 0.75 || homeNorm.includes(reqHomeNorm) || reqHomeNorm.includes(homeNorm);
+      const awayMatch = awayScore > 0.75 || awayNorm.includes(reqAwayNorm) || reqAwayNorm.includes(awayNorm);
+      if (homeMatch && awayMatch) {
+        console.log(`[SofaFetch] ✅ MATCH trovato: "${e.homeTeam.name}" vs "${e.awayTeam.name}" (score: ${homeScore.toFixed(2)} / ${awayScore.toFixed(2)})`);
+        sofaEvent = e;
+        break;
+      } else {
+        console.log(`[SofaFetch]   skip "${e.homeTeam.name}" vs "${e.awayTeam.name}" — home: ${homeScore.toFixed(2)} (ok:${homeMatch}), away: ${awayScore.toFixed(2)} (ok:${awayMatch})`);
+      }
+    }
 
     if (!sofaEvent) {
+      console.warn(`[SofaFetch] ⚠️  Match non trovato in ${date}. Provo data successiva...`);
       // Prova anche date adiacenti (partite notturne / fuso orario)
-      const altDate = new Date(date);
-      altDate.setDate(altDate.getDate() + 1);
+      const altDate = new Date(date + 'T12:00:00Z');
+      altDate.setUTCDate(altDate.getUTCDate() + 1);
       const altDateStr = altDate.toISOString().split('T')[0];
+      console.log(`[SofaFetch] Controllo data alternativa: ${altDateStr}`);
       const altEventsData = await fetchJson(
         `https://api.sofascore.com/api/v1/sport/football/scheduled-events/${altDateStr}`
       );
       const altFinished = (altEventsData?.events || []).filter((e) => e.status?.type === 'finished');
-      const altEvent = altFinished.find(
-        (e) => matchTeam(home_team, e.homeTeam.name) && matchTeam(away_team, e.awayTeam.name)
-      );
-      if (!altEvent) {
+      console.log(`[SofaFetch] Data alt — concluse: ${altFinished.length}`);
+      altFinished.forEach(e => console.log(`  - "${e.homeTeam.name}" vs "${e.awayTeam.name}"` ));
+
+      for (const e of altFinished) {
+        if (matchTeam(home_team, e.homeTeam.name) && matchTeam(away_team, e.awayTeam.name)) {
+          console.log(`[SofaFetch] ✅ MATCH trovato in data alternativa!`);
+          sofaEvent = e;
+          break;
+        }
+      }
+
+      if (!sofaEvent) {
+        console.error(`[SofaFetch] ❌ Partita non trovata né in ${date} né in ${altDateStr}`);
         return NextResponse.json({
           error: `Partita "${home_team} vs ${away_team}" non trovata su SofaScore per il ${date}`,
           hint: 'Verifica i nomi delle squadre o la data',
+          debug: {
+            searchedDate: date,
+            altDate: altDateStr,
+            normalizedRequest: { home: normalizeTeamName(home_team), away: normalizeTeamName(away_team) },
+            finishedGamesOnDate: finishedEvents.map(e => `${e.homeTeam.name} vs ${e.awayTeam.name}`),
+          }
         }, { status: 404 });
       }
-      // usa altEvent
-      return await fetchStatsAndRespond(altEvent);
     }
 
     return await fetchStatsAndRespond(sofaEvent);
 
   } catch (err) {
+    console.error(`[SofaFetch] ❌ Eccezione: ${err.message}`, err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
 async function fetchStatsAndRespond(sofaEvent) {
   // 3. Scarica le statistiche dettagliate
+  console.log(`[SofaFetch] Fetching stats per event ID: ${sofaEvent.id}`);
   const statsData = await fetchJson(
     `https://api.sofascore.com/api/v1/event/${sofaEvent.id}/statistics`
   );
+
+  if (!statsData?.statistics) {
+    console.warn(`[SofaFetch] ⚠️  Nessuna statistica disponibile per l'evento ${sofaEvent.id}`);
+  }
 
   const s = parseStatistics(statsData?.statistics);
   const A = s['ALL'];
@@ -238,6 +297,18 @@ async function fetchStatsAndRespond(sofaEvent) {
     home_possession:       A.home.ballPossession ?? null,
     away_possession:       A.away.ballPossession ?? null,
   };
+
+  // Log completo di tutti i 36 campi
+  console.log(`[SofaFetch] ✅ Risultato completo per ${result.sofaHomeName} vs ${result.sofaAwayName}:`);
+  console.log(`  [VISIBILI] Gol: ${result.home_goals}-${result.away_goals} | Tiri: ${result.home_shots}-${result.away_shots} | SOT: ${result.home_sot}-${result.away_sot}`);
+  console.log(`  [VISIBILI] Falli: ${result.home_fouls}-${result.away_fouls} | Corner: ${result.home_corners}-${result.away_corners}`);
+  console.log(`  [VISIBILI] Gialli: ${result.home_yellows}-${result.away_yellows} | Rossi: ${result.home_reds}-${result.away_reds} | Parate: ${result.home_saves}-${result.away_saves}`);
+  console.log(`  [SOFA]     xG: ${result.home_xg}-${result.away_xg} | xG HT: ${result.home_xg_ht}-${result.away_xg_ht}`);
+  console.log(`  [SOFA]     Gol HT: ${result.home_goals_ht}-${result.away_goals_ht} | Corner HT: ${result.home_corners_ht}-${result.away_corners_ht}`);
+  console.log(`  [SOFA]     Gialli HT: ${result.home_yellows_ht}-${result.away_yellows_ht} | Rossi HT: ${result.home_reds_ht}-${result.away_reds_ht}`);
+  console.log(`  [SOFA]     Fuorigioco: ${result.home_offsides}-${result.away_offsides} | Tiri in area: ${result.home_shots_insidebox}-${result.away_shots_insidebox}`);
+  console.log(`  [SOFA]     Grandi occ.: ${result.home_big_chances}-${result.away_big_chances} | Possesso: ${result.home_possession}%-${result.away_possession}%`);
+  console.log(`[SofaFetch] ═══════════════════════════════════════\n`);
 
   return NextResponse.json({ success: true, data: result });
 }

@@ -147,8 +147,21 @@ async function start() {
     }
 
     if (evMl !== null) {
+      // Calcolo del CV
+      let cvMl = 0;
       if (foundMarketDef.type === 'over_under' && varMl !== null) {
         probMl = PROB_BINOM_NEG_ML(foundMarketDef.line, evMl, varMl, foundMarketDef.direction);
+        cvMl = CV_CALC(evMl, Math.sqrt(varMl));
+      } else if (foundMarketDef.type === '1x2') {
+        const evCasa = preds[foundMarketDef.stat].casa;
+        const evOspite = preds[foundMarketDef.stat].ospite;
+        const vCasa = preds[foundMarketDef.stat].casa_var || Math.pow(SD_AVANZATO(homeTeam, awayTeam, foundMarketDef.stat, 'casa', pastMatches), 2);
+        const vOspite = preds[foundMarketDef.stat].ospite_var || Math.pow(SD_AVANZATO(homeTeam, awayTeam, foundMarketDef.stat, 'ospite', pastMatches), 2);
+        
+        let targetVar = foundMarketDef.esito === '1' ? vCasa : foundMarketDef.esito === '2' ? vOspite : ((vCasa + vOspite) / 2);
+        cvMl = CV_CALC(evMl, Math.sqrt(targetVar));
+      } else if (varMl !== null) {
+        cvMl = CV_CALC(evMl, Math.sqrt(varMl));
       }
 
       if (probMl !== null) {
@@ -156,8 +169,8 @@ async function start() {
         const edge = bestOdds > 0 ? (bestOdds * probMl) - 1 : 0;
 
         updates.push({
-          sql: "UPDATE backtest_bets SET probability = ?, best_edge = ?, ev_ml = ? WHERE id = ?",
-          args: [probMl, edge, evMl, b.id]
+          sql: "UPDATE backtest_bets SET probability = ?, best_edge = ?, ev_ml = ?, cv = ? WHERE id = ?",
+          args: [probMl, edge, evMl, cvMl, b.id]
         });
       }
     }

@@ -18,8 +18,8 @@ markdown += `Di seguito trovi le migliori combinazioni filtrate, ordinate rigoro
 markdown += `1. **Win Rate** maggiore (fino al 100%)\n`;
 markdown += `2. **Numero di Scommesse** maggiore (a parità di Win Rate)\n`;
 markdown += `3. **ROI (Yield)** maggiore (a parità di Win Rate e Scommesse)\n\n`;
-markdown += `| # | WinRate | Yield | Scommesse | Profitto | Edge Min | Prob Min | Media Storico | Singolo Storico | Media Forma | Singolo Forma |\n`;
-markdown += `|---|---|---|---|---|---|---|---|---|---|---|\n`;
+markdown += `| # | WinRate | Yield | Scommesse | Profitto | Edge Min | Prob Min | CV Max | Media Storico | Singolo Storico | Media Forma | Singolo Forma |\n`;
+markdown += `|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
 
 for (let i = 0; i < topResults.length; i++) {
   const r = topResults[i];
@@ -31,12 +31,13 @@ for (let i = 0; i < topResults.length; i++) {
   
   const edge = `${(p.minEdge*100).toFixed(0)}%`;
   const prob = `${(p.minProb*100).toFixed(0)}%`;
+  const cvMax = p.maxCV === 1.0 ? '—' : `${(p.maxCV*100).toFixed(0)}%`;
   const hAvg = `${(p.minHistAvg*100).toFixed(0)}%`;
   const hSng = `${(p.minHistSingle*100).toFixed(0)}%`;
   const fAvg = `${(p.minFormAvg*100).toFixed(0)}%`;
   const fSng = `${(p.minFormSingle*100).toFixed(0)}%`;
 
-  markdown += `| **${i+1}** | **${wr}** | ${yieldPct} | ${r.total} | ${profit} | ${edge} | ${prob} | ${hAvg} | ${hSng} | ${fAvg} | ${fSng} |\n`;
+  markdown += `| **${i+1}** | **${wr}** | ${yieldPct} | ${r.total} | ${profit} | ${edge} | ${prob} | **${cvMax}** | ${hAvg} | ${hSng} | ${fAvg} | ${fSng} |\n`;
 }
 
 fs.writeFileSync('topCombinations.md', markdown);

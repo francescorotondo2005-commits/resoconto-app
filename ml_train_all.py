@@ -2,6 +2,7 @@ import sqlite3
 import pandas as pd
 import numpy as np
 import os
+import time
 os.environ["PYTHONWARNINGS"] = "ignore"
 import json
 import joblib
@@ -22,6 +23,8 @@ warnings.filterwarnings('ignore')
 # COSTANTI
 # ?????????????????????????????????????????????????????????????
 STATS = ['gol', 'tiri', 'tip', 'falli', 'corner', 'cartellini', 'parate']
+SOFA_STATS = ['xg', 'possession', 'shots_insidebox', 'big_chances']
+ALL_STATS = STATS + SOFA_STATS
 
 # Soglie Over/Under per il calcolo delle Hit Rates (stile Excel)
 # Per ogni statistica, le 3 linee di scommessa più comuni
@@ -33,6 +36,10 @@ HIT_RATE_THRESHOLDS = {
     'corner':     [3.5, 4.5, 5.5],
     'cartellini': [1.5, 2.5, 3.5],
     'parate':     [1.5, 2.5, 3.5],
+    'xg':         [0.5, 1.5, 2.5],
+    'possession': [45.0, 50.0, 55.0],
+    'shots_insidebox': [5.5, 8.5, 11.5],
+    'big_chances': [1.5, 2.5, 3.5],
 }
 # Directory per i modelli (percorsi assoluti per evitare errori se chiamato da altre cartelle)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -59,9 +66,24 @@ def get_stat(row, stat, is_home):
         'falli':      ('home_fouls',   'away_fouls'),
         'corner':     ('home_corners', 'away_corners'),
     }
+    sofa_mapping = {
+        'xg':         ('home_xg',      'away_xg'),
+        'possession': ('home_possession', 'away_possession'),
+        'shots_insidebox': ('home_shots_insidebox', 'away_shots_insidebox'),
+        'big_chances':('home_big_chances', 'away_big_chances'),
+    }
+    
     if stat in mapping:
         col = mapping[stat][0] if is_home else mapping[stat][1]
         return float(row.get(col, 0) or 0)
+        
+    if stat in sofa_mapping:
+        col = sofa_mapping[stat][0] if is_home else sofa_mapping[stat][1]
+        val = row.get(col)
+        if val is None or pd.isna(val):
+            return None
+        return float(val)
+
     if stat == 'cartellini':
         y_col = 'home_yellows' if is_home else 'away_yellows'
         r_col = 'home_reds'    if is_home else 'away_reds'
@@ -112,6 +134,16 @@ def get_feature_cols(stat):
         # Differenziali di forza
         f'f_{stat}_str_h',   f'f_{stat}_str_a',
     ]
+    if stat == 'gol':
+        for s in SOFA_STATS:
+            cols.extend([
+                f'f_{s}_h_for5', f'f_{s}_a_for5',
+                f'f_{s}_h_ag5', f'f_{s}_a_ag5',
+                f'f_{s}_str_h', f'f_{s}_str_a',
+                f'f_{s}_h_for_hr1', f'f_{s}_a_for_hr1',
+                f'f_{s}_h_for_med', f'f_{s}_a_for_med'
+            ])
+
     if stat in ('falli', 'cartellini'):
         cols.append(f'f_{stat}_ref')
 
@@ -189,23 +221,23 @@ def feature_engineering(df):
                     s: {'for_all': [], 'ag_all': [],
                         'home_for': [], 'home_ag': [],
                         'away_for': [], 'away_ag': []}
-                    for s in STATS
+                    for s in ALL_STATS
                 }
         if ref not in ref_hist:
-            ref_hist[ref] = {s: [] for s in STATS}
+            ref_hist[ref] = {s: [] for s in ALL_STATS}
 
         # Richiedi almeno 3 partite per entrambe le squadre
         if (len(team_hist[home]['gol']['for_all']) < 3 or
                 len(team_hist[away]['gol']['for_all']) < 3):
             # Aggiorna storia e vai avanti senza aggiungere riga
-            for s in STATS:
+            for s in ALL_STATS:
                 hv = get_stat(row, s, True)
                 av = get_stat(row, s, False)
                 _update_hist(team_hist, ref_hist, home, away, ref, s, hv, av)
             continue
 
         row_feat = {}
-        for s in STATS:
+        for s in ALL_STATS:
             h = team_hist[home][s]
             a = team_hist[away][s]
 
@@ -265,23 +297,41 @@ def feature_engineering(df):
             row_feat[f'f_{s}_a_for_med'] = _median(a['for_all'], 10)
             row_feat[f'f_{s}_a_ag_med']  = _median(a['ag_all'],  10)
 
-            # Target
+
+
+        
+        for s in STATS:
             row_feat[f'target_{s}_casa']   = get_stat(row, s, True)
             row_feat[f'target_{s}_ospite'] = get_stat(row, s, False)
+            
+        row_feat['__has_sofa__'] = (get_stat(row, 'xg', True) is not None)
 
         features.append(row_feat)
 
         # Aggiorna storia
-        for s in STATS:
+        for s in ALL_STATS:
             hv = get_stat(row, s, True)
             av = get_stat(row, s, False)
             _update_hist(team_hist, ref_hist, home, away, ref, s, hv, av)
 
-    result = pd.DataFrame(features).fillna(0)
+    result = pd.DataFrame(features)
+    print("DataFrame columns:", result.columns.tolist() if not result.empty else "EMPTY")
+    if not result.empty and '__has_sofa__' in result.columns:
+        print("__has_sofa__ counts:", result['__has_sofa__'].value_counts().to_dict())
+    
+    if '__has_sofa__' in result.columns:
+        result = result[result['__has_sofa__'] == True].drop(columns=['__has_sofa__']).fillna(0)
+    else:
+        print("ERROR: __has_sofa__ column is missing!")
+        result = result.fillna(0)
+        
     print(f"  >> {len(result)} partite valide per il training.")
     return result
 
 def _update_hist(team_hist, ref_hist, home, away, ref, s, hv, av):
+    if hv is None or av is None:
+        return # Salta le partite mancanti dei dati SofaScore per preservare le medie mobili
+        
     team_hist[home][s]['for_all'].append(hv)
     team_hist[home][s]['ag_all'].append(av)
     team_hist[home][s]['home_for'].append(hv)
@@ -412,6 +462,32 @@ def optuna_tune(ml_df, n_trials=N_OPTUNA_TRIALS):
     return best_params
 
 # ?????????????????????????????????????????????????????????????
+# OPTUNA TUNING VARIANZA
+# ?????????????????????????????????????????????????????????????
+def tune_variance_xgboost(X, var_yc, var_yo, n_trials=20):
+    kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    def objective(trial):
+        p = {
+            'n_estimators': trial.suggest_int('n_estimators', 50, 300),
+            'max_depth': trial.suggest_int('max_depth', 2, 6),
+            'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.2, log=True),
+            'subsample': trial.suggest_float('subsample', 0.6, 1.0),
+            'colsample_bytree': trial.suggest_float('colsample_bytree', 0.6, 1.0)
+        }
+        maes = []
+        for tr, te in kf.split(X):
+            mc = xgb.XGBRegressor(**p, random_state=42, verbosity=0).fit(X.iloc[tr], var_yc.iloc[tr])
+            mo = xgb.XGBRegressor(**p, random_state=42, verbosity=0).fit(X.iloc[tr], var_yo.iloc[tr])
+            mae_c = mean_absolute_error(var_yc.iloc[te], mc.predict(X.iloc[te]))
+            mae_o = mean_absolute_error(var_yo.iloc[te], mo.predict(X.iloc[te]))
+            maes.append((mae_c + mae_o) / 2)
+        return float(np.mean(maes))
+
+    study = optuna.create_study(direction='minimize')
+    study.optimize(objective, n_trials=n_trials)
+    return study.best_params
+
+# ?????????????????????????????????????????????????????????????
 # CHAMPION VS CHALLENGER
 # ?????????????????????????????????????????????????????????????
 def champion_vs_challenger(stat, chal_mae_cv, metrics):
@@ -471,6 +547,7 @@ def champion_vs_challenger_variance(ml_df, challenger_models, target_var_c, targ
 # TRAINING PRINCIPALE
 # ?????????????????????????????????????????????????????????????
 def train_and_save_models(db_path='resoconto.db', force_tune=False):
+    start_time = time.time()
     df    = load_data(db_path)
     ml_df = feature_engineering(df)
 
@@ -483,6 +560,14 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
             last_count = json.load(f).get('last_tune_count', 0)
     if force_tune or (cur_count - last_count >= TUNE_EVERY_N):
         auto_tune = True
+
+    variance_best_params = {}
+    if os.path.exists(VARIANCE_BEST_PARAMS_PATH):
+        try:
+            with open(VARIANCE_BEST_PARAMS_PATH) as f:
+                variance_best_params = json.load(f)
+        except Exception:
+            pass
 
     # Carica o calcola best_params
     if auto_tune:
@@ -646,7 +731,21 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
         var_yc = (yc - pred_c) ** 2
         var_yo = (yo - pred_o) ** 2
 
-        var_params = {'n_estimators': 100, 'max_depth': 4, 'learning_rate': 0.05, 'random_state': 42}
+        if auto_tune:
+            print(f"    [Tuning] Cerco i migliori parametri per la Varianza ({stat})...")
+            best_var_p = tune_variance_xgboost(X, var_yc, var_yo, n_trials=15)
+            variance_best_params[stat] = best_var_p
+            os.makedirs(VARIANCE_MODELS_DIR, exist_ok=True)
+            with open(VARIANCE_BEST_PARAMS_PATH, 'w') as f:
+                json.dump(variance_best_params, f, indent=2)
+            var_params = best_var_p.copy()
+        else:
+            var_params = variance_best_params.get(stat, {'n_estimators': 100, 'max_depth': 4, 'learning_rate': 0.05}).copy()
+
+        var_params['random_state'] = 42
+        if 'verbosity' not in var_params:
+            var_params['verbosity'] = 0
+
         v_chal_c = xgb.XGBRegressor(**var_params).fit(X, var_yc)
         v_chal_o = xgb.XGBRegressor(**var_params).fit(X, var_yo)
 
@@ -703,6 +802,10 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
         print(f"  {s.upper():12s} | {m['model_type'].upper():3s} | {mae_glob:16s} | {var_mae:7s} | {status}")
     print(f"\n[OK] Completato. Metriche -> {METRICS_PATH}")
     print(f"[OK] Variance Metriche -> {VARIANCE_METRICS_PATH}")
+
+    elapsed = time.time() - start_time
+    mins, secs = divmod(elapsed, 60)
+    print(f"\n[⏱️] Tempo totale di esecuzione: {int(mins)} minuti e {int(secs)} secondi")
 
 # ?????????????????????????????????????????????????????????????
 # ENTRY POINT
