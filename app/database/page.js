@@ -33,6 +33,7 @@ export default function DatabasePage() {
   const [editMatchId, setEditMatchId] = useState(null);
   const [sofaLoading, setSofaLoading] = useState(false);
   const [sofaData, setSofaData] = useState(null); // i 20 campi nascosti SofaScore
+  const [showManual, setShowManual] = useState(false); // toggle per i campi manuali
 
   const [teams, setTeams] = useState([]);
   const [referees, setReferees] = useState([]);
@@ -489,30 +490,37 @@ export default function DatabasePage() {
                 {leagueReferees.map(r => <option key={r} value={r} />)}
               </datalist>
 
-              <h4 style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '16px 0 12px', borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>Statistiche Partita</h4>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr', gap: '8px 16px', alignItems: 'center' }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}></div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textAlign: 'center' }}>CASA</div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textAlign: 'center' }}>OSPITE</div>
-
-                {[
-                  ['Gol', 'home_goals', 'away_goals'],
-                  ['Tiri', 'home_shots', 'away_shots'],
-                  ['TIP', 'home_sot', 'away_sot'],
-                  ['Falli', 'home_fouls', 'away_fouls'],
-                  ['Corner', 'home_corners', 'away_corners'],
-                  ['Gialli', 'home_yellows', 'away_yellows'],
-                  ['Rossi', 'home_reds', 'away_reds'],
-                  ['Parate', 'home_saves', 'away_saves'],
-                ].map(([label, homeField, awayField]) => (
-                  <div key={label} style={{ display: 'contents' }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>{label}</div>
-                    <input type="number" min="0" value={form[homeField]} onChange={e => handleFormChange(homeField, e.target.value)} required={label !== 'Parate'} style={{ textAlign: 'center' }} />
-                    <input type="number" min="0" value={form[awayField]} onChange={e => handleFormChange(awayField, e.target.value)} required={label !== 'Parate'} style={{ textAlign: 'center' }} />
-                  </div>
-                ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '16px 0 12px', borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
+                <h4 style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0 }}>Statistiche Partita</h4>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowManual(!showManual)}>
+                  {showManual ? 'Nascondi Campi Manuali' : '✏️ Compila Manualmente'}
+                </button>
               </div>
+              
+              {showManual && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr', gap: '8px 16px', alignItems: 'center' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}></div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textAlign: 'center' }}>CASA</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textAlign: 'center' }}>OSPITE</div>
+
+                  {[
+                    ['Gol', 'home_goals', 'away_goals'],
+                    ['Tiri', 'home_shots', 'away_shots'],
+                    ['TIP', 'home_sot', 'away_sot'],
+                    ['Falli', 'home_fouls', 'away_fouls'],
+                    ['Corner', 'home_corners', 'away_corners'],
+                    ['Gialli', 'home_yellows', 'away_yellows'],
+                    ['Rossi', 'home_reds', 'away_reds'],
+                    ['Parate', 'home_saves', 'away_saves'],
+                  ].map(([label, homeField, awayField]) => (
+                    <div key={label} style={{ display: 'contents' }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>{label}</div>
+                      <input type="number" min="0" value={form[homeField]} onChange={e => handleFormChange(homeField, e.target.value)} required={label !== 'Parate'} style={{ textAlign: 'center' }} />
+                      <input type="number" min="0" value={form[awayField]} onChange={e => handleFormChange(awayField, e.target.value)} required={label !== 'Parate'} style={{ textAlign: 'center' }} />
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className="form-row" style={{ marginTop: 16 }}>
                 <div className="input-group">
