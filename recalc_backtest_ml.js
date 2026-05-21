@@ -68,10 +68,14 @@ async function start() {
   fs.writeFileSync(batchFilePath, JSON.stringify(uniqueMatches));
 
   const mlPredictions = await new Promise((resolve, reject) => {
-    // Usa l'eseguibile Python specifico
-    const pythonExec = 'C:\\Users\\pierr\\AppData\\Local\\Programs\\Python\\Python314\\python.exe';
-    execFile(pythonExec, ['ml_predict.py', '--batch-file', batchFilePath], { maxBuffer: 1024 * 1024 * 50 }, (err, stdout) => {
-      if (err) return reject(err);
+    // Usa l'eseguibile Python di default (quello del terminale)
+    const pythonExec = 'python';
+    execFile(pythonExec, ['ml_predict.py', '--batch-file', batchFilePath], { maxBuffer: 1024 * 1024 * 50 }, (err, stdout, stderr) => {
+      if (err) {
+        err.stdout = stdout;
+        err.stderr = stderr;
+        return reject(err);
+      }
       try {
         resolve(JSON.parse(stdout.trim()));
       } catch (e) {
@@ -188,6 +192,11 @@ async function start() {
 }
 
 start().catch(err => {
+  console.error("ERRORE SCRIPT:");
   console.error(err);
+  if (err.stdout) {
+    console.error("STDOUT PYTHON:");
+    console.error(err.stdout.toString());
+  }
   process.exit(1);
 });

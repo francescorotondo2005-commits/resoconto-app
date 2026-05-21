@@ -12,8 +12,8 @@ set WINRATE=0.80
 set /p input_winrate="Win Rate Minimo [0.80 = 80%%]: "
 if not "!input_winrate!"=="" set WINRATE=!input_winrate!
 
-set BETS=15
-set /p input_bets="Scommesse Minime [15]: "
+set BETS=20
+set /p input_bets="Scommesse Minime [20]: "
 if not "!input_bets!"=="" set BETS=!input_bets!
 
 set QUOTA=1.60
@@ -27,8 +27,8 @@ if not "!input_topk!"=="" set TOPK=!input_topk!
 echo.
 echo ========================================================
 echo Parametri impostati: WinRate=%WINRATE%, Bets=%BETS%, Quota=%QUOTA%, Top=%TOPK%
-echo Questo processo testera' oltre 500 Milioni di combinazioni.
-echo Il tempo stimato e' di circa 10-12 minuti. Non chiudere la finestra!
+echo Questo processo testera' miliardi di combinazioni con potatura avanzata.
+echo Il tempo stimato e' di circa 5-6 minuti. Non chiudere la finestra!
 echo ========================================================
 echo.
 echo Inizio calcolo: %time%

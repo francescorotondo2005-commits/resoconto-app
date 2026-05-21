@@ -1,51 +1,51 @@
 {
   "gol": {
-    "n_estimators": 52,
-    "max_depth": 2,
-    "learning_rate": 0.010478840943194557,
-    "subsample": 0.6050371957131088,
-    "colsample_bytree": 0.8557541514747081
+    "n_estimators": 51,
+    "max_depth": 3,
+    "learning_rate": 0.019183125239608457,
+    "subsample": 0.851419880583495,
+    "colsample_bytree": 0.666554021371302
   },
   "tiri": {
-    "n_estimators": 50,
-    "max_depth": 3,
-    "learning_rate": 0.02676292781430695,
-    "subsample": 0.9882542447713574,
-    "colsample_bytree": 0.9917010195250431
+    "n_estimators": 140,
+    "max_depth": 2,
+    "learning_rate": 0.010155502525446072,
+    "subsample": 0.8007304942216191,
+    "colsample_bytree": 0.9467132017701114
   },
   "tip": {
-    "n_estimators": 52,
+    "n_estimators": 134,
     "max_depth": 2,
-    "learning_rate": 0.010177398758326586,
-    "subsample": 0.6356750023756239,
-    "colsample_bytree": 0.9999898314104797
+    "learning_rate": 0.01022430344025086,
+    "subsample": 0.9902711574423728,
+    "colsample_bytree": 0.8687045702099426
   },
   "falli": {
-    "n_estimators": 96,
+    "n_estimators": 73,
     "max_depth": 2,
-    "learning_rate": 0.010312121629962812,
-    "subsample": 0.7149707317409983,
-    "colsample_bytree": 0.6300155465287618
+    "learning_rate": 0.02739314924750916,
+    "subsample": 0.7340376721173358,
+    "colsample_bytree": 0.9658057786693953
   },
   "corner": {
-    "n_estimators": 117,
-    "max_depth": 2,
-    "learning_rate": 0.017313649456839574,
-    "subsample": 0.9969563919291474,
-    "colsample_bytree": 0.6785631414658232
-  },
-  "cartellini": {
-    "n_estimators": 55,
-    "max_depth": 2,
-    "learning_rate": 0.019794068705121206,
-    "subsample": 0.9525303423709818,
-    "colsample_bytree": 0.7821310777460667
-  },
-  "parate": {
     "n_estimators": 52,
     "max_depth": 2,
-    "learning_rate": 0.010518906884863953,
-    "subsample": 0.7445421119238388,
-    "colsample_bytree": 0.7040529780300973
+    "learning_rate": 0.02624710942587744,
+    "subsample": 0.6794569267912839,
+    "colsample_bytree": 0.7487784455222606
+  },
+  "cartellini": {
+    "n_estimators": 146,
+    "max_depth": 2,
+    "learning_rate": 0.010142251214792872,
+    "subsample": 0.6067385904285781,
+    "colsample_bytree": 0.9957585345646793
+  },
+  "parate": {
+    "n_estimators": 59,
+    "max_depth": 6,
+    "learning_rate": 0.01550959012565124,
+    "subsample": 0.6297129791832751,
+    "colsample_bytree": 0.9095823992869632
   }
 }
