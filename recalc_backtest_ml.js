@@ -68,8 +68,8 @@ async function start() {
   fs.writeFileSync(batchFilePath, JSON.stringify(uniqueMatches));
 
   const mlPredictions = await new Promise((resolve, reject) => {
-    // Usa l'eseguibile Python di default (quello del terminale)
-    const pythonExec = 'python';
+    // Usa l'eseguibile Python 3.13 per supportare i pacchetti ML installati
+    const pythonExec = 'python3';
     execFile(pythonExec, ['ml_predict.py', '--batch-file', batchFilePath], { maxBuffer: 1024 * 1024 * 50 }, (err, stdout, stderr) => {
       if (err) {
         err.stdout = stdout;

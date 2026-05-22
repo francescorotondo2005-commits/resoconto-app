@@ -982,13 +982,27 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
                     pred_o = (loaded_o['rf'].predict(X_all_var) + loaded_o['xgb'].predict(X_pruned_var) + loaded_o['hgb'].predict(X_pruned_var)) / 3
                 X_var = X_pruned_var
             else:
-                pred_c = loaded_c.predict(X_winner)
-                pred_o = loaded_o.predict(X_winner)
-                X_var  = X_winner
+                if not challenger_wins:
+                    champ_type = metrics.get(stat, {}).get('model_type', 'xgb')
+                    X_champ = X_all if champ_type == 'rf' else X_pruned
+                    pred_c = loaded_c.predict(X_champ)
+                    pred_o = loaded_o.predict(X_champ)
+                    X_var  = X_champ
+                else:
+                    pred_c = loaded_c.predict(X_winner)
+                    pred_o = loaded_o.predict(X_winner)
+                    X_var  = X_winner
         else:
-            pred_c = active_c_final.predict(X_winner)
-            pred_o = active_o_final.predict(X_winner)
-            X_var  = X_winner
+            if not challenger_wins:
+                champ_type = metrics.get(stat, {}).get('model_type', 'xgb')
+                X_champ = X_all if champ_type == 'rf' else X_pruned
+                pred_c = active_c_final.predict(X_champ)
+                pred_o = active_o_final.predict(X_champ)
+                X_var  = X_champ
+            else:
+                pred_c = active_c_final.predict(X_winner)
+                pred_o = active_o_final.predict(X_winner)
+                X_var  = X_winner
 
         var_yc = pd.Series((yc.values - pred_c) ** 2, index=yc.index)
         var_yo = pd.Series((yo.values - pred_o) ** 2, index=yo.index)
