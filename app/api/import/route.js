@@ -118,15 +118,16 @@ export async function POST(request) {
     // Trigger auto-retrain del modello ML (fire-and-forget, non blocca l'import)
     const dbScraperUrl = await getSetting('scraper_url');
     const scraperUrl = dbScraperUrl || process.env.SCRAPER_SERVICE_URL;
-    if (scraperUrl) {
-      const targetUrl = scraperUrl.replace(/\/$/, '') + '/retrain';
-      fetch(targetUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
-      }).then(r => r.json())
-        .then(d => console.log('[ML Auto-Retrain] Avviato:', d.message))
-        .catch(e => console.warn('[ML Auto-Retrain] Servizio non raggiungibile:', e.message));
-    }
+    // [Disabilitato: l'addestramento richiede ~40 min, meglio farlo manualmente a fine giornata]
+    // if (scraperUrl) {
+    //   const targetUrl = scraperUrl.replace(/\/$/, '') + '/retrain';
+    //   fetch(targetUrl, {
+    //     method: 'POST',
+    //     headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+    //   }).then(r => r.json())
+    //     .then(d => console.log('[ML Auto-Retrain] Avviato:', d.message))
+    //     .catch(e => console.warn('[ML Auto-Retrain] Servizio non raggiungibile:', e.message));
+    // }
 
     return NextResponse.json({ success: true, results, retrainTriggered: !!scraperUrl });
   } catch (error) {

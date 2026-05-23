@@ -254,7 +254,7 @@ app.post('/ml-predict', (req, res) => {
 
 
    
-    execFile(pythonExecutable, [scriptPath, ...args], { timeout: 40000, cwd: PROJECT_DIR, maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
+    execFile(pythonExecutable, [scriptPath, ...args], { timeout: 120000, cwd: PROJECT_DIR, maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
      if (err) {
        console.error('[ML] Errore ml_predict.py:', err.message);
        if (stdout) console.error('[ML] Stdout:', stdout);
@@ -290,9 +290,9 @@ app.post('/ml-predict-batch', (req, res) => {
   const args = ['--batch', JSON.stringify(matches)];
 
   execFile(pythonExecutable, [scriptPath, ...args], { 
-    timeout: 60000, 
-    cwd: PROJECT_DIR,
-    maxBuffer: 1024 * 1024 * 10 
+    cwd: PROJECT_DIR, 
+    timeout: 300000, 
+    maxBuffer: 50 * 1024 * 1024 
   }, (err, stdout) => {
     if (err) {
       console.error('[ML-Batch] Errore:', err.message);
@@ -326,10 +326,12 @@ app.post('/retrain', (req, res) => {
 
   const scriptPath = path.join(PROJECT_DIR, 'ml_train_all.py');
 
-  execFile('python', [scriptPath], { timeout: 1200000, cwd: PROJECT_DIR }, (err, stdout) => {
+  execFile('python', [scriptPath], { timeout: 3600000, cwd: PROJECT_DIR }, (err, stdout) => {
     app.locals.retrainRunning = false;
     if (err) {
       console.error('[ML] Errore re-training:', err.message);
+      if (err.stderr) console.error('[ML] STDERR:', err.stderr);
+      if (stdout) console.error('[ML] STDOUT:', stdout);
     } else {
       console.log('[ML] ── Re-training completato ──\n');
       console.log(stdout);

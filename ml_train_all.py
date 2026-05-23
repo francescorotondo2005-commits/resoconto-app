@@ -706,8 +706,17 @@ def champion_vs_challenger_variance(ml_df, challenger_models, target_var_c, targ
     try:
         champ_c = joblib.load(champ_path_c)
         champ_o = joblib.load(champ_path_o)
-        mae_champ_glob = (mean_absolute_error(vc, champ_c.predict(X), sample_weight=sample_weights) +
-                          mean_absolute_error(vo, champ_o.predict(X), sample_weight=sample_weights)) / 2
+        try:
+            X_c = X[champ_c.feature_names_in_] if hasattr(champ_c, 'feature_names_in_') else X
+        except Exception:
+            X_c = X
+        try:
+            X_o = X[champ_o.feature_names_in_] if hasattr(champ_o, 'feature_names_in_') else X
+        except Exception:
+            X_o = X
+            
+        mae_champ_glob = (mean_absolute_error(vc, champ_c.predict(X_c), sample_weight=sample_weights) +
+                          mean_absolute_error(vo, champ_o.predict(X_o), sample_weight=sample_weights)) / 2
     except:
         return True, 0.0, mae_chal_glob
 
@@ -985,12 +994,31 @@ def train_and_save_models(db_path='resoconto.db', force_tune=False):
                 if not challenger_wins:
                     champ_type = metrics.get(stat, {}).get('model_type', 'xgb')
                     X_champ = X_all if champ_type == 'rf' else X_pruned
-                    pred_c = loaded_c.predict(X_champ)
-                    pred_o = loaded_o.predict(X_champ)
+                    try:
+                        X_c = X_all[loaded_c.feature_names_in_] if hasattr(loaded_c, 'feature_names_in_') else X_champ
+                        pred_c = loaded_c.predict(X_c)
+                    except Exception as e:
+                        print(f"  [!] Fallito predict champion casa: {e}")
+                        pred_c = np.zeros(len(X_champ))
+
+                    try:
+                        X_o = X_all[loaded_o.feature_names_in_] if hasattr(loaded_o, 'feature_names_in_') else X_champ
+                        pred_o = loaded_o.predict(X_o)
+                    except Exception as e:
+                        print(f"  [!] Fallito predict champion ospite: {e}")
+                        pred_o = np.zeros(len(X_champ))
                     X_var  = X_champ
                 else:
-                    pred_c = loaded_c.predict(X_winner)
-                    pred_o = loaded_o.predict(X_winner)
+                    try:
+                        X_c = X_all[loaded_c.feature_names_in_] if hasattr(loaded_c, 'feature_names_in_') else X_winner
+                        pred_c = loaded_c.predict(X_c)
+                    except Exception:
+                        pred_c = np.zeros(len(X_winner))
+                    try:
+                        X_o = X_all[loaded_o.feature_names_in_] if hasattr(loaded_o, 'feature_names_in_') else X_winner
+                        pred_o = loaded_o.predict(X_o)
+                    except Exception:
+                        pred_o = np.zeros(len(X_winner))
                     X_var  = X_winner
         else:
             if not challenger_wins:
