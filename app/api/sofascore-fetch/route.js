@@ -43,6 +43,11 @@ const TEAM_MAPPING = {
   'fcsb': 'fcsb',
   'fcsb bucuresti': 'fcsb',
   'steaua bucuresti': 'fcsb',
+  'rapid vienna': 'rapid wien',
+  'copenhagen': 'kobenhavn',
+  'fc copenhagen': 'kobenhavn',
+  'guimaraes': 'vitoria sc',
+  'vitoria guimaraes': 'vitoria sc',
 };
 
 function normalizeTeamName(name) {

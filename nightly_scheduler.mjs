@@ -35,6 +35,27 @@ const TEAM_MAPPING = {
   'ath bilbao': 'athletic club',
   'sociedad': 'real sociedad',
   'betis': 'real betis',
+  
+  // European Cup & Cup Synonyms
+  'olympiakos piraeus': 'olympiacos',
+  'olympiakos': 'olympiacos',
+  'olympiacos fc': 'olympiacos',
+  'union st. gilloise': 'union saint-gilloise',
+  'union st gilloise': 'union saint-gilloise',
+  'royale union saint-gilloise': 'union saint-gilloise',
+  'rigas fs': 'rfs',
+  'fk rigas futbola skola': 'rfs',
+  'paok': 'paok',
+  'paok fc': 'paok',
+  'paok thessaloniki': 'paok',
+  'fcsb': 'fcsb',
+  'fcsb bucuresti': 'fcsb',
+  'steaua bucuresti': 'fcsb',
+  'rapid vienna': 'rapid wien',
+  'copenhagen': 'kobenhavn',
+  'fc copenhagen': 'kobenhavn',
+  'guimaraes': 'vitoria sc',
+  'vitoria guimaraes': 'vitoria sc',
 };
 
 // ─── Utility normalizzazione e fuzzy match ────────────────────────────────────
@@ -54,6 +75,14 @@ function normalizeTeam(name) {
 function matchTeam(dbName, sofaName) {
   const d = normalizeTeam(dbName), s = normalizeTeam(sofaName);
   if (d === s) return true;
+
+  // Eccezione specifica per impedire falsi positivi tra Angers (angers) e Rangers (rangers)
+  if (
+    (d === 'rangers' && s === 'angers') ||
+    (d === 'angers' && s === 'rangers')
+  ) {
+    return false;
+  }
 
   // Eccezione specifica per impedire falsi positivi tra Paris FC (paris) e PSG (paris saint-germain o psg)
   if (
