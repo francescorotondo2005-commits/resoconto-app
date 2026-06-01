@@ -27,6 +27,22 @@ const TEAM_MAPPING = {
   'osasuna': 'ca osasuna', 'strasbourg': 'rc strasbourg',
   'stuttgart': 'vfb stuttgart', 'tottenham': 'tottenham hotspur',
   'toulouse': 'toulouse', 'west ham': 'west ham united',
+  
+  // European Cup & Cup Synonyms
+  'olympiakos piraeus': 'olympiacos',
+  'olympiakos': 'olympiacos',
+  'olympiacos fc': 'olympiacos',
+  'union st. gilloise': 'union saint-gilloise',
+  'union st gilloise': 'union saint-gilloise',
+  'royale union saint-gilloise': 'union saint-gilloise',
+  'rigas fs': 'rfs',
+  'fk rigas futbola skola': 'rfs',
+  'paok': 'paok',
+  'paok fc': 'paok',
+  'paok thessaloniki': 'paok',
+  'fcsb': 'fcsb',
+  'fcsb bucuresti': 'fcsb',
+  'steaua bucuresti': 'fcsb',
 };
 
 function normalizeTeamName(name) {
