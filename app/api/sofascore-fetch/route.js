@@ -31,13 +31,15 @@ const TEAM_MAPPING = {
 
 function normalizeTeamName(name) {
   if (!name) return '';
-  let n = name.toLowerCase().trim();
+  // Rimuove accenti e caratteri speciali unicode (diacritici, es: Qarabağ -> Qarabag)
+  let n = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   if (TEAM_MAPPING[n]) n = TEAM_MAPPING[n];
   return n
-    .replace(/fc\s+|ac\s+|as\s+|ss\s+|\s+fc|\s+calcio/g, '')
+    .replace(/\b(fc|ac|as|ss|fk|gnk|sk|nk|bk|gfc|ud|sc|cf|sd|rc|sv|calcio)\b/g, '')
     .replace(/internazionale|inter milan/, 'inter')
     .replace(/hellas verona/, 'verona')
     .replace(/athletic club/, 'athletic bilbao')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -68,8 +70,37 @@ function getSimilarity(s1, s2) {
 function matchTeam(dbName, sofaName) {
   const a = normalizeTeamName(dbName);
   const b = normalizeTeamName(sofaName);
-  return a === b || getSimilarity(a, b) > 0.75;
+  if (a === b) return true;
+
+  // Eccezione specifica per impedire falsi positivi tra Paris FC (paris) e PSG (paris saint-germain o psg)
+  if (
+    ((a === 'paris' || a === 'paris fc') && (b.includes('germain') || b === 'psg')) ||
+    ((b === 'paris' || b === 'paris fc') && (a.includes('germain') || a === 'psg'))
+  ) {
+    return false;
+  }
+
+  // Eccezione specifica per Real Sociedad / Real Madrid / Real Betis
+  if (
+    (a === 'real' && (b.includes('madrid') || b.includes('sociedad') || b.includes('betis'))) ||
+    (b === 'real' && (a.includes('madrid') || a.includes('sociedad') || a.includes('betis')))
+  ) {
+    return false;
+  }
+
+  // Previene matching errati tra Manchester City e Manchester United
+  if (a.includes('manchester') && b.includes('manchester')) {
+    const isCityA = a.includes('city');
+    const isCityB = b.includes('city');
+    const isUnitedA = a.includes('united');
+    const isUnitedB = b.includes('united');
+    if (isCityA !== isCityB || isUnitedA !== isUnitedB) return false;
+  }
+
+  return getSimilarity(a, b) > 0.75;
 }
+
+import { fetchSofaJson } from '../../../lib/sofa_playwright.js';
 
 // ─── SofaScore API fetcher (https nativo — stesso trick del backfill) ─────────
 async function fetchJson(url) {
@@ -94,42 +125,8 @@ async function fetchJson(url) {
   }
 
   // Fallback (locale)
-  return new Promise((resolve) => {
-    console.log(`[SofaFetch] GET Locale ${url}`);
-    const options = {
-      agent: false,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Referer': 'https://www.sofascore.com/',
-        'Origin': 'https://www.sofascore.com',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-      },
-    };
-    https.get(url, options, (res) => {
-      console.log(`[SofaFetch] Status: ${res.statusCode} for ${url}`);
-      if (res.statusCode !== 200) {
-        console.error(`[SofaFetch] ❌ Non-200 status ${res.statusCode} — resolving null`);
-        return resolve(null);
-      }
-      let data = '';
-      res.on('data', (c) => (data += c));
-      res.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          resolve(parsed);
-        } catch (e) {
-          console.error(`[SofaFetch] ❌ JSON parse error: ${e.message}`);
-          resolve(null);
-        }
-      });
-    }).on('error', (e) => {
-      console.error(`[SofaFetch] ❌ Network error: ${e.message}`);
-      resolve(null);
-    });
-  });
+  console.log(`[SofaFetch] GET Locale con Playwright per ${url}`);
+  return await fetchSofaJson(url);
 }
 
 function extractValue(val) {

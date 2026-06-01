@@ -19,6 +19,7 @@ import { execFile } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import https from 'https';
+import { fetchSofaJson } from '../lib/sofa_playwright.js';
 
 // Forza la codifica UTF-8 per tutti i child_process Python (evita i crash con le emoji)
 process.env.PYTHONIOENCODING = 'utf-8';
@@ -359,34 +360,21 @@ app.get('/retrain/status', (req, res) => {
  * Proxy per chiamate a SofaScore.
  * Aggira i blocchi Cloudflare di Vercel facendo partire la richiesta dall'IP locale.
  */
-app.get('/proxy-sofascore', (req, res) => {
+app.get('/proxy-sofascore', async (req, res) => {
   const targetUrl = req.query.url;
   if (!targetUrl) return res.status(400).json({ error: 'Manca parametro url' });
 
-  const options = {
-    agent: false,
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-      'Accept': 'application/json, text/plain, */*',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Referer': 'https://www.sofascore.com/',
-      'Origin': 'https://www.sofascore.com',
-      'Cache-Control': 'no-cache',
-      'Pragma': 'no-cache',
-    },
-  };
-
-  https.get(targetUrl, options, (httpRes) => {
-    let data = '';
-    httpRes.on('data', (c) => (data += c));
-    httpRes.on('end', () => {
-      try { 
-        res.json(JSON.parse(data)); 
-      } catch { 
-        res.status(500).json({ error: 'Errore parsing JSON da SofaScore', raw: data.slice(0, 500) }); 
-      }
-    });
-  }).on('error', (e) => res.status(500).json({ error: e.message }));
+  console.log(`[Proxy-SofaScore] GET con Playwright per: ${targetUrl}`);
+  try {
+    const data = await fetchSofaJson(targetUrl);
+    if (!data) {
+      return res.status(500).json({ error: 'Nessun dato ricevuto da SofaScore tramite Playwright' });
+    }
+    res.json(data);
+  } catch (e) {
+    console.error(`[Proxy-SofaScore] ❌ Errore:`, e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ── Avvio server ──────────────────────────────────────────────────────────────

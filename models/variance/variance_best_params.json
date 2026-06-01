@@ -1,10 +1,10 @@
 {
   "gol": {
-    "n_estimators": 50,
-    "max_depth": 2,
-    "learning_rate": 0.02296332585693967,
-    "subsample": 0.6184521518151757,
-    "colsample_bytree": 0.7559175212146017
+    "n_estimators": 263,
+    "max_depth": 5,
+    "learning_rate": 0.010795229405030348,
+    "subsample": 0.856606734821096,
+    "colsample_bytree": 0.8255146409693318
   },
   "tiri": {
     "n_estimators": 52,

@@ -1,0 +1,37 @@
+name: Nightly Stats, Training & Predictions
+on:
+  schedule:
+    - cron: '0 3 * * *' # Ogni notte alle 03:00 UTC (05:00 in Italia)
+  workflow_dispatch: # Consente l'avvio manuale con un pulsante su GitHub
+
+jobs:
+  update-train-predict:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Install Python Dependencies
+        run: pip install pandas numpy xgboost scikit-learn libsql-client optuna shap joblib
+
+      - name: Run Nightly Scheduler
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: node nightly_scheduler.mjs

@@ -1,22 +1,22 @@
 {
   "gol": {
     "rf": {
-      "n_estimators": 463,
-      "max_depth": 6,
-      "min_samples_leaf": 9
+      "n_estimators": 153,
+      "max_depth": 8,
+      "min_samples_leaf": 10
     },
     "xgb": {
-      "n_estimators": 304,
-      "max_depth": 8,
-      "learning_rate": 0.0124492408819258,
-      "subsample": 0.6592853669040124,
-      "colsample_bytree": 0.6276497842292343
+      "n_estimators": 461,
+      "max_depth": 6,
+      "learning_rate": 0.0813726268531824,
+      "subsample": 0.709068551473945,
+      "colsample_bytree": 0.7032060236006094
     },
     "hgb": {
-      "max_iter": 152,
-      "max_depth": 6,
-      "min_samples_leaf": 49,
-      "learning_rate": 0.01633276079436413
+      "max_iter": 333,
+      "max_depth": 3,
+      "min_samples_leaf": 32,
+      "learning_rate": 0.16183850329803287
     }
   },
   "tiri": {

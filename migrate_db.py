@@ -18,45 +18,53 @@ def migrate_db():
         "home_passes REAL", "away_passes REAL",
         "home_crosses REAL", "away_crosses REAL",
         "home_tackles REAL", "away_tackles REAL",
-        "home_interceptions REAL", "away_interceptions REAL"
+        "home_interceptions REAL", "away_interceptions REAL",
+        "competition_type TEXT"
     ]
 
     queries = []
     for col in columns_to_add:
-        col_name = col.split()[0]
-        # For Turso/SQLite, we just try to ALTER TABLE and catch the error if it exists
         queries.append(f"ALTER TABLE matches ADD COLUMN {col};")
 
-    if url and token:
-        print("[DB] Connessione a Turso in corso...")
-        client = libsql.create_client_sync(url, auth_token=token)
-        for q in queries:
-            try:
-                client.execute(q)
-                print(f"Eseguito: {q}")
-            except Exception as e:
-                if "duplicate column name" in str(e).lower():
-                    print(f"Colonna già esistente (skippo): {q}")
-                else:
-                    print(f"Errore su {q}: {e}")
-        client.close()
-    else:
-        print("[DB] Connessione al DB locale...")
-        conn = sqlite3.connect('resoconto.db', timeout=30)
+    # 1. Migrazione DB locale (Sempre eseguita!)
+    print("[DB] Connessione al DB locale (resoconto.db)...")
+    db_path = 'resoconto.db'
+    if os.path.exists(db_path):
+        conn = sqlite3.connect(db_path, timeout=30)
         cur = conn.cursor()
         for q in queries:
             try:
                 cur.execute(q)
-                print(f"Eseguito: {q}")
+                print(f"  [Locale] Eseguito: {q}")
             except sqlite3.OperationalError as e:
                 if "duplicate column name" in str(e).lower():
-                    print(f"Colonna già esistente (skippo): {q}")
+                    pass
                 else:
-                    print(f"Errore su {q}: {e}")
+                    print(f"  [Locale] Errore su {q}: {e}")
         conn.commit()
         conn.close()
+    else:
+        print(f"[DB] Avviso: file {db_path} non trovato in locale.")
+
+    # 2. Migrazione Turso (Se configurato)
+    if url and token:
+        print("[DB] Connessione a Turso in corso per la migrazione...")
+        client = libsql.create_client_sync(url, auth_token=token)
+        for q in queries:
+            try:
+                client.execute(q)
+                print(f"  [Turso] Eseguito: {q}")
+            except Exception as e:
+                if "duplicate column name" in str(e).lower():
+                    pass
+                else:
+                    print(f"  [Turso] Errore su {q}: {e}")
+        client.close()
+    else:
+        print("[DB] Turso non configurato o credenziali mancanti in .env.local.")
         
-    print("Migrazione completata!")
+    print("Migrazione completata con successo su tutti i database attivi!")
 
 if __name__ == '__main__':
     migrate_db()
+
