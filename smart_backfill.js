@@ -32,6 +32,8 @@ const CF_COOKIE = (() => {
   return idx !== -1 ? process.argv[idx + 1] : null;
 })();
 
+const IS_HEADFUL = process.argv.includes('--headful');
+
 if (!CF_COOKIE) {
   console.warn('[WARN] Nessun cookie --cookie fornito. Se ottieni 403, copia cf_clearance da Chrome:');
   console.warn('       DevTools (F12) → Application → Cookies → sofascore.com → cf_clearance');
@@ -95,7 +97,7 @@ async function fetchJson(url) {
   try {
     if (!sofaSession) {
       console.log('  [SofaScore] Inizializzazione sessione Playwright...');
-      sofaSession = await createSofaSession(CF_COOKIE);
+      sofaSession = await createSofaSession(CF_COOKIE, IS_HEADFUL);
     }
     const res = await sofaSession.fetch(url);
     if (res && res.__error) {
