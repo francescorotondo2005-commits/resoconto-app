@@ -95,7 +95,7 @@ async function fetchJson(url) {
   try {
     if (!sofaSession) {
       console.log('  [SofaScore] Inizializzazione sessione Playwright...');
-      sofaSession = await createSofaSession();
+      sofaSession = await createSofaSession(CF_COOKIE);
     }
     const res = await sofaSession.fetch(url);
     if (res && res.__error) {
