@@ -98,6 +98,31 @@ const TEAM_MAPPING = {
   'guimaraes': 'vitoria sc',
   'vitoria guimaraes': 'vitoria sc',
   'borussia hildesheim': 'vfv borussia 06 hildesheim',
+  
+  // Spanish Cup & Racing Santander Mappings
+  'racing santander': 'real racing club',
+  'ejea': 'sd ejea',
+  'hercules': 'hercules de alicante cf',
+  'xerez': 'xerez cd',
+  'ad ceuta': 'ad ceuta fc',
+  'barbastro': 'ud barbastro',
+  'amorebieta': 'sd amorebieta',
+  'tudelano': 'cd tudelano',
+  'deportiva minera': 'cd deportiva minera',
+  'don benito': 'cd don benito',
+  'llanera': 'ud llanera',
+  'cultural leonesa': 'cultural y deportiva leonesa',
+  'ibiza islas pitiusas': 'cd ibiza islas pitiusas',
+  'gimnastic': 'gimnastic de tarragona',
+  'langreo': 'up langreo',
+  'orihuela': 'orihuela cf',
+  'bergantiños': 'bergantinos fc',
+  'marbella': 'marbella fc',
+  'beasain': 'beasain sd',
+  'mostoles': 'cd mostoles urjc',
+  'burgos': 'burgos cf',
+  'numancia': 'cd numancia',
+  'sporting gijon': 'real sporting gijon',
 };
 
 // ─── Utility normalizzazione e fuzzy match ────────────────────────────────────
