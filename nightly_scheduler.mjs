@@ -35,6 +35,47 @@ const TEAM_MAPPING = {
   'ath bilbao': 'athletic club',
   'sociedad': 'real sociedad',
   'betis': 'real betis',
+  'lipsia': 'rb leipzig',
+  'ein frankfurt': 'eintracht frankfurt',
+  'austria vienna': 'austria wien',
+  'amburgo': 'hamburger sv',
+  'hamburg': 'hamburger sv',
+  'espanol': 'espanyol',
+  'fc koln': '1. fc köln',
+  'forest': 'nottingham forest',
+  'friburgo': 'sc freiburg',
+  'heidenheim': '1. fc heidenheim',
+  'leverkusen': 'bayer 04 leverkusen',
+  "m'gladbach": 'borussia mönchengladbach',
+  "borussia m'gladbach": 'borussia mönchengladbach',
+  'st pauli': 'st. pauli',
+  'vallecano': 'rayo vallecano',
+  'wolves': 'wolverhampton',
+  'rennes': 'stade rennais',
+  'union berlin': '1. fc union berlin',
+  'mainz': '1. fsv mainz 05',
+  'hoffenheim': 'tsg hoffenheim',
+  'celta': 'celta vigo',
+  'alaves': 'deportivo alavés',
+  'auxerre': 'aj auxerre',
+  'brest': 'stade brestois',
+  'brighton': 'brighton & hove albion',
+  'le havre': 'le havre',
+  'leeds': 'leeds united',
+  'lens': 'rc lens',
+  'lyon': 'olympique lyonnais',
+  'marseille': 'olympique de marseille',
+  'metz': 'fc metz',
+  'monaco': 'as monaco',
+  'nantes': 'fc nantes',
+  'newcastle': 'newcastle united',
+  'nice': 'ogc nice',
+  'osasuna': 'ca osasuna',
+  'strasbourg': 'rc strasbourg',
+  'stuttgart': 'vfb stuttgart',
+  'tottenham': 'tottenham hotspur',
+  'toulouse': 'toulouse',
+  'west ham': 'west ham united',
   
   // European Cup & Cup Synonyms
   'olympiakos piraeus': 'olympiacos',
@@ -56,6 +97,7 @@ const TEAM_MAPPING = {
   'fc copenhagen': 'kobenhavn',
   'guimaraes': 'vitoria sc',
   'vitoria guimaraes': 'vitoria sc',
+  'borussia hildesheim': 'vfv borussia 06 hildesheim',
 };
 
 // ─── Utility normalizzazione e fuzzy match ────────────────────────────────────
@@ -311,10 +353,23 @@ async function run() {
         const finished = dateEvents.events.filter(e => e.status?.type === 'finished');
 
         for (const dbMatch of matches) {
-          const sofaEvent = finished.find(e => 
+          let sofaEvent = finished.find(e => 
             matchTeam(dbMatch.home_team, e.homeTeam?.name) &&
             matchTeam(dbMatch.away_team, e.awayTeam?.name)
           );
+          let inverted = false;
+
+          if (!sofaEvent) {
+            // Prova con i ruoli invertiti (es. campo neutro per finali/coppe)
+            sofaEvent = finished.find(e =>
+              matchTeam(dbMatch.home_team, e.awayTeam?.name) &&
+              matchTeam(dbMatch.away_team, e.homeTeam?.name)
+            );
+            if (sofaEvent) {
+              inverted = true;
+              console.log(`  [INFO] Trovato match con ruoli invertiti su SofaScore: ${sofaEvent.homeTeam?.name} (casa Sofa) vs ${sofaEvent.awayTeam?.name} (trasferta Sofa)`);
+            }
+          }
 
           if (!sofaEvent) {
             console.log(`  [SKIP] Non trovato su SofaScore: ${dbMatch.home_team} vs ${dbMatch.away_team}`);
@@ -360,8 +415,23 @@ async function run() {
             continue;
           }
 
-          const s = parseStats(statsData.statistics);
-          const ht = { home: sofaEvent.homeScore?.period1 ?? null, away: sofaEvent.awayScore?.period1 ?? null };
+          let s = parseStats(statsData.statistics);
+          let ht = { home: sofaEvent.homeScore?.period1 ?? null, away: sofaEvent.awayScore?.period1 ?? null };
+
+          if (inverted) {
+            // Scambia le statistiche per allinearle al nostro DB
+            const tempALLHome = s.ALL.home;
+            s.ALL.home = s.ALL.away;
+            s.ALL.away = tempALLHome;
+
+            const temp1STHome = s['1ST'].home;
+            s['1ST'].home = s['1ST'].away;
+            s['1ST'].away = temp1STHome;
+
+            const tempHtHome = ht.home;
+            ht.home = ht.away;
+            ht.away = tempHtHome;
+          }
 
           // Salva tutte le statistiche e i gol reali finiti
           await db.execute({

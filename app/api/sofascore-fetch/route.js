@@ -211,6 +211,7 @@ export async function POST(request) {
 
     // 2. Cerca la partita corrispondente con fuzzy matching
     let sofaEvent = null;
+    let inverted = false;
     for (const e of finishedEvents) {
       const homeNorm = normalizeTeamName(e.homeTeam.name);
       const awayNorm = normalizeTeamName(e.awayTeam.name);
@@ -226,6 +227,26 @@ export async function POST(request) {
         break;
       } else {
         console.log(`[SofaFetch]   skip "${e.homeTeam.name}" vs "${e.awayTeam.name}" — home: ${homeScore.toFixed(2)} (ok:${homeMatch}), away: ${awayScore.toFixed(2)} (ok:${awayMatch})`);
+      }
+    }
+
+    if (!sofaEvent) {
+      // Prova con i ruoli invertiti (es. campo neutro per finali/coppe)
+      for (const e of finishedEvents) {
+        const homeNorm = normalizeTeamName(e.homeTeam.name);
+        const awayNorm = normalizeTeamName(e.awayTeam.name);
+        const reqHomeNorm = normalizeTeamName(home_team);
+        const reqAwayNorm = normalizeTeamName(away_team);
+        const homeScore = getSimilarity(reqHomeNorm, awayNorm);
+        const awayScore = getSimilarity(reqAwayNorm, homeNorm);
+        const homeMatch = homeScore > 0.75 || awayNorm.includes(reqHomeNorm) || reqHomeNorm.includes(awayNorm);
+        const awayMatch = awayScore > 0.75 || homeNorm.includes(reqAwayNorm) || reqAwayNorm.includes(homeNorm);
+        if (homeMatch && awayMatch) {
+          console.log(`[SofaFetch] ✅ MATCH trovato (ruoli invertiti): "${e.homeTeam.name}" vs "${e.awayTeam.name}"`);
+          sofaEvent = e;
+          inverted = true;
+          break;
+        }
       }
     }
 
@@ -249,6 +270,12 @@ export async function POST(request) {
           sofaEvent = e;
           break;
         }
+        if (matchTeam(home_team, e.awayTeam.name) && matchTeam(away_team, e.homeTeam.name)) {
+          console.log(`[SofaFetch] ✅ MATCH trovato in data alternativa (ruoli invertiti)!`);
+          sofaEvent = e;
+          inverted = true;
+          break;
+        }
       }
 
       if (!sofaEvent) {
@@ -266,7 +293,7 @@ export async function POST(request) {
       }
     }
 
-    return await fetchStatsAndRespond(sofaEvent);
+    return await fetchStatsAndRespond(sofaEvent, inverted);
 
   } catch (err) {
     console.error(`[SofaFetch] ❌ Eccezione: ${err.message}`, err);
@@ -274,7 +301,7 @@ export async function POST(request) {
   }
 }
 
-async function fetchStatsAndRespond(sofaEvent) {
+async function fetchStatsAndRespond(sofaEvent, inverted = false) {
   // 3. Scarica le statistiche dettagliate
   console.log(`[SofaFetch] Fetching stats per event ID: ${sofaEvent.id}`);
   const statsData = await fetchJson(
@@ -286,8 +313,18 @@ async function fetchStatsAndRespond(sofaEvent) {
   }
 
   const s = parseStatistics(statsData?.statistics);
-  const A = s['ALL'];
-  const H = s['1ST'];
+  let A = s['ALL'];
+  let H = s['1ST'];
+  let ht = { home: sofaEvent.homeScore?.period1 ?? null, away: sofaEvent.awayScore?.period1 ?? null };
+  let goals = { home: sofaEvent.homeScore?.current ?? null, away: sofaEvent.awayScore?.current ?? null };
+
+  if (inverted) {
+    // Scambia le statistiche per allinearle al nostro DB
+    const tempA = A.home; A.home = A.away; A.away = tempA;
+    const tempH = H.home; H.home = H.away; H.away = tempH;
+    const tempHt = ht.home; ht.home = ht.away; ht.away = tempHt;
+    const tempGoals = goals.home; goals.home = goals.away; goals.away = tempGoals;
+  }
 
   // 4. Costruisce il payload completo
   const result = {
@@ -296,8 +333,8 @@ async function fetchStatsAndRespond(sofaEvent) {
     sofaAwayName: sofaEvent.awayTeam.name,
 
     // ── Campi visibili nel form (16) ─────────────────────────────────────────
-    home_goals:   sofaEvent.homeScore?.current ?? null,
-    away_goals:   sofaEvent.awayScore?.current ?? null,
+    home_goals:   goals.home,
+    away_goals:   goals.away,
     home_shots:   A.home.totalShotsOnGoal ?? null,
     away_shots:   A.away.totalShotsOnGoal ?? null,
     home_sot:     A.home.shotsOnGoal ?? null,
@@ -318,8 +355,8 @@ async function fetchStatsAndRespond(sofaEvent) {
     away_xg:               A.away.expectedGoals ?? null,
     home_xg_ht:            H.home.expectedGoals ?? null,
     away_xg_ht:            H.away.expectedGoals ?? null,
-    home_goals_ht:         sofaEvent.homeScore?.period1 ?? null,
-    away_goals_ht:         sofaEvent.awayScore?.period1 ?? null,
+    home_goals_ht:         ht.home,
+    away_goals_ht:         ht.away,
     home_corners_ht:       H.home.cornerKicks ?? null,
     away_corners_ht:       H.away.cornerKicks ?? null,
     home_yellows_ht:       H.home.yellowCards ?? null,
