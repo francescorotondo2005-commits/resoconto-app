@@ -76,6 +76,14 @@ function getDbClient() {
   if (process.env.TURSO_DATABASE_URL) {
     url = process.env.TURSO_DATABASE_URL.trim().replace(/['"]/g, '').replace(/\r?\n|\r/g, '');
     authToken = process.env.TURSO_AUTH_TOKEN ? process.env.TURSO_AUTH_TOKEN.trim().replace(/['"]/g, '').replace(/\r?\n|\r/g, '') : undefined;
+    
+    // Stampa di debug sicura per identificare discrepanze con i segreti di GitHub
+    console.log(`  [DB Debug] URL: "${url.slice(0, 15)}...${url.slice(-10)}" (Lunghezza: ${url.length})`);
+    if (authToken) {
+      console.log(`  [DB Debug] Token: "${authToken.slice(0, 8)}...${authToken.slice(-8)}" (Lunghezza: ${authToken.length})`);
+    } else {
+      console.log('  [DB Debug] Token non fornito / UNDEFINED');
+    }
   }
 
   return createClient({ url, authToken });
