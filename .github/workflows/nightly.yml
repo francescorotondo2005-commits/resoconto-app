@@ -34,4 +34,5 @@ jobs:
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          SCRAPER_SERVICE_URL: ${{ secrets.SCRAPER_SERVICE_URL }}
         run: node nightly_scheduler.mjs
