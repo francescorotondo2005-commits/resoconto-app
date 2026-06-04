@@ -74,8 +74,8 @@ function getDbClient() {
 
   // Sovrascrivi con variabili di ambiente reali (usate su GitHub Actions)
   if (process.env.TURSO_DATABASE_URL) {
-    url = process.env.TURSO_DATABASE_URL;
-    authToken = process.env.TURSO_AUTH_TOKEN;
+    url = process.env.TURSO_DATABASE_URL.trim().replace(/['"]/g, '').replace(/\r?\n|\r/g, '');
+    authToken = process.env.TURSO_AUTH_TOKEN ? process.env.TURSO_AUTH_TOKEN.trim().replace(/['"]/g, '').replace(/\r?\n|\r/g, '') : undefined;
   }
 
   return createClient({ url, authToken });
